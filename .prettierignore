@@ -1,0 +1,7 @@
+node_modules/
+dist/
+apps/web/dist/
+coverage/
+supabase/.temp/
+supabase/migrations/*.sql
+package-lock.json

@@ -1,0 +1,33 @@
+{
+  "name": "obrasys-brasil",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit && npm run typecheck --workspaces --if-present",
+    "lint": "node scripts/check-no-explicit-any.mjs && eslint . --max-warnings=0 && prettier --check .",
+    "test": "node --test",
+    "build": "tsc -p tsconfig.json --noEmit && npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "prettier": "^3.4.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.18.2",
+    "vite": "^6.0.5"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
