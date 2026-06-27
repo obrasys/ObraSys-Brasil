@@ -3,6 +3,29 @@ import { test } from "node:test";
 
 import { calculatePmeBudget } from "../packages/domain/src/pme/calculatePmeBudget.ts";
 
+test("calculates a simple item cost and price", () => {
+  const result = calculatePmeBudget({
+    items: [
+      {
+        description: "Troca de piso",
+        kind: "servico",
+        quantity: "2.5",
+        unitCost: "100.00",
+        unitPrice: "150.00"
+      }
+    ],
+    overheadPercentage: "0",
+    taxPercentage: "0",
+    profitPercentage: "0",
+    discountAmount: "0"
+  });
+
+  assert.equal(result.items[0]?.totalCost, "250.00");
+  assert.equal(result.items[0]?.totalPrice, "375.00");
+  assert.equal(result.subtotalCost, "250.00");
+  assert.equal(result.subtotalPrice, "375.00");
+});
+
 test("calculates budget without discount", () => {
   const result = calculatePmeBudget({
     items: [
@@ -24,6 +47,28 @@ test("calculates budget without discount", () => {
   assert.equal(result.items[0]?.totalPrice, "800.00");
   assert.equal(result.subtotalCost, "500.00");
   assert.equal(result.finalPrice, "500.00");
+});
+
+test("rejects quantities with more than four decimal places", () => {
+  assert.throws(
+    () =>
+      calculatePmeBudget({
+        items: [
+          {
+            description: "Quantidade inválida",
+            kind: "material",
+            quantity: "1.00001",
+            unitCost: "10.00",
+            unitPrice: "12.00"
+          }
+        ],
+        overheadPercentage: "0",
+        taxPercentage: "0",
+        profitPercentage: "0",
+        discountAmount: "0"
+      }),
+    /quantity cannot have more than 4 decimal places/
+  );
 });
 
 test("calculates budget with discount", () => {

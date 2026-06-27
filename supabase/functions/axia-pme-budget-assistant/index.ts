@@ -4,10 +4,10 @@ import {
   buildAxiaPmeAssistantResponse,
   sanitizeAxiaContext,
   sanitizeAxiaText,
+  type AxiaPmeActionType,
   type AxiaPmeAssistantResponse,
   type AxiaPmeBudgetContext,
-  type AxiaPmeInsight,
-  type AxiaPmeTask
+  type AxiaPmeSuggestion
 } from "../../../packages/domain/src/axia/pmeBudgetAssistant.ts";
 
 declare const Deno: {
@@ -18,9 +18,10 @@ declare const Deno: {
 };
 
 interface AxiaRequestBody {
-  task: AxiaPmeTask;
-  userText: string;
+  actionType: AxiaPmeActionType;
+  userMessage?: string;
   budgetId?: string;
+  options?: Record<string, unknown>;
 }
 
 interface AuthenticatedContext {
@@ -33,6 +34,10 @@ interface SupabaseClientLike {
     getUser: () => Promise<{ data: { user: { id: string } | null }; error: Error | null }>;
   };
   from: (table: string) => QueryBuilderLike;
+  rpc: (
+    functionName: string,
+    args: Record<string, string | string[]>
+  ) => Promise<{ data: boolean | null; error: Error | null }>;
 }
 
 interface QueryBuilderLike {
@@ -52,11 +57,13 @@ interface BudgetRow {
   budget_number: string;
   title: string;
   description: string | null;
+  budget_type: string;
   status: string;
   subtotal_cost: DecimalLike;
   final_price: DecimalLike;
   profit_percentage: DecimalLike;
   tax_percentage: DecimalLike;
+  discount_amount: DecimalLike;
 }
 
 interface EnvironmentRow {
@@ -67,18 +74,27 @@ interface EnvironmentRow {
 interface ItemRow {
   description: string;
   item_type: string;
+  category: string | null;
   unit: string;
   quantity: DecimalLike;
+  unit_price: DecimalLike;
   show_on_proposal: boolean;
 }
 
-interface SavedSinapiRow {
+interface PaymentTermRow {
+  description: string;
+  percentage: DecimalLike | null;
+  amount: DecimalLike | null;
+  due_condition: string | null;
+}
+
+interface SinapiSnapshotRow {
   sinapi_code: string;
   sinapi_description: string;
-  state_code: string;
+  uf: string;
   reference_month: number;
   reference_year: number;
-  original_unit_cost: DecimalLike;
+  original_total_cost: DecimalLike;
   adapted_unit_price: DecimalLike;
 }
 
@@ -119,7 +135,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return jsonResponse(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Axia execution failed.";
-    return jsonResponse({ error: message }, 400);
+    return jsonResponse({ error: message }, statusFromError(message));
   }
 });
 
@@ -179,42 +195,65 @@ async function runAxiaPmeAssistant(
   context: AuthenticatedContext,
   body: AxiaRequestBody
 ): Promise<AxiaPmeAssistantResponse & { runId: string }> {
+  const organizationId = await resolveOrganizationId(context, body.budgetId);
+  await assertCanUseAxia(context, organizationId);
+
   const prompt = await fetchActivePrompt(context.supabase);
   const budgetContext = await buildBudgetContext(context, body.budgetId);
-  const organizationId = await resolveOrganizationId(context, body.budgetId);
-  const textSanitization = sanitizeAxiaText(body.userText);
+  const textSanitization = sanitizeAxiaText(body.userMessage ?? "");
   const contextSanitization = sanitizeAxiaContext(budgetContext);
-  const response = buildAxiaPmeAssistantResponse({
-    task: body.task,
-    userText: textSanitization.sanitizedText,
-    context: contextSanitization.sanitizedContext
-  });
   const run = await createRun(context, {
     organizationId,
     budgetId: body.budgetId,
     promptId: prompt.id,
-    task: body.task
+    actionType: body.actionType,
+    inputSummary: summarizeInput(body.actionType, textSanitization.sanitizedText)
+  });
+  const response = buildAxiaPmeAssistantResponse({
+    actionType: body.actionType,
+    userMessage: textSanitization.sanitizedText,
+    context: contextSanitization.sanitizedContext
   });
 
   await createContextSnapshot(context, {
     organizationId,
     runId: run.id,
     budgetId: body.budgetId,
-    task: body.task,
+    actionType: body.actionType,
     sanitizedContext: contextSanitization.sanitizedContext,
+    redactionSummary: contextSanitization.redactionSummary,
     removedFields: [...textSanitization.removedFields, ...contextSanitization.removedFields]
   });
-  await createInsights(context, {
+  await createRedactionLog(context, {
+    organizationId,
+    runId: run.id,
+    redactedFields: [...textSanitization.removedFields, ...contextSanitization.removedFields]
+  });
+  await createSuggestions(context, {
     organizationId,
     runId: run.id,
     budgetId: body.budgetId,
-    insights: response.insights
+    suggestions: response.suggestions
   });
 
   return {
     ...response,
     runId: run.id
   };
+}
+
+async function assertCanUseAxia(
+  context: AuthenticatedContext,
+  organizationId: string
+): Promise<void> {
+  const { data: hasRole, error } = await context.supabase.rpc("has_organization_role", {
+    target_organization_id: organizationId,
+    allowed_roles: ["owner", "admin", "manager"]
+  });
+
+  if (error !== null || hasRole !== true) {
+    throw new Error("User is not allowed to use Axia for this organization.");
+  }
 }
 
 async function fetchActivePrompt(supabase: SupabaseClientLike): Promise<PromptRow> {
@@ -243,9 +282,10 @@ async function buildBudgetContext(
   }
 
   const budget = await fetchBudget(context.supabase, budgetId);
-  const [environments, items, sinapiReferences] = await Promise.all([
+  const [environments, items, paymentTerms, sinapiReferences] = await Promise.all([
     fetchEnvironments(context.supabase, budgetId),
     fetchItems(context.supabase, budgetId),
+    fetchPaymentTerms(context.supabase, budgetId),
     fetchSinapiReferences(context.supabase, budgetId)
   ]);
 
@@ -254,6 +294,7 @@ async function buildBudgetContext(
     budgetNumber: budget.budget_number,
     title: budget.title,
     description: budget.description ?? undefined,
+    budgetType: budget.budget_type,
     status: budget.status,
     environments,
     items,
@@ -261,8 +302,10 @@ async function buildBudgetContext(
       subtotalCost: toDecimalString(budget.subtotal_cost),
       finalPrice: toDecimalString(budget.final_price),
       profitPercentage: toDecimalString(budget.profit_percentage),
-      taxPercentage: toDecimalString(budget.tax_percentage)
+      taxPercentage: toDecimalString(budget.tax_percentage),
+      discountAmount: toDecimalString(budget.discount_amount)
     },
+    paymentTerms,
     sinapiReferences
   };
 }
@@ -295,7 +338,20 @@ async function fetchBudget(supabase: SupabaseClientLike, budgetId: string): Prom
   const { data, error } = await supabase
     .from("pme_budgets")
     .select(
-      "id,organization_id,budget_number,title,description,status,subtotal_cost,final_price,profit_percentage,tax_percentage"
+      [
+        "id",
+        "organization_id",
+        "budget_number",
+        "title",
+        "description",
+        "budget_type",
+        "status",
+        "subtotal_cost",
+        "final_price",
+        "profit_percentage",
+        "tax_percentage",
+        "discount_amount"
+      ].join(",")
     )
     .eq("id", budgetId)
     .maybeSingle();
@@ -329,7 +385,7 @@ async function fetchItems(
 ): Promise<NonNullable<AxiaPmeBudgetContext["items"]>> {
   const { data, error } = await supabase
     .from("pme_budget_items")
-    .select("description,item_type,unit,quantity,show_on_proposal")
+    .select("description,item_type,category,unit,quantity,unit_price,show_on_proposal")
     .eq("budget_id", budgetId);
 
   if (error !== null || !Array.isArray(data)) {
@@ -339,9 +395,32 @@ async function fetchItems(
   return data.filter(isItemRow).map((item) => ({
     description: item.description,
     itemType: item.item_type,
+    category: item.category ?? undefined,
     unit: item.unit,
     quantity: toDecimalString(item.quantity),
+    unitPrice: toDecimalString(item.unit_price),
     showOnProposal: item.show_on_proposal
+  }));
+}
+
+async function fetchPaymentTerms(
+  supabase: SupabaseClientLike,
+  budgetId: string
+): Promise<NonNullable<AxiaPmeBudgetContext["paymentTerms"]>> {
+  const { data, error } = await supabase
+    .from("pme_budget_payment_terms")
+    .select("description,percentage,amount,due_condition")
+    .eq("budget_id", budgetId);
+
+  if (error !== null || !Array.isArray(data)) {
+    throw new Error("Could not read payment terms for Axia.");
+  }
+
+  return data.filter(isPaymentTermRow).map((term) => ({
+    description: term.description,
+    percentage: term.percentage === null ? null : toDecimalString(term.percentage),
+    amount: term.amount === null ? null : toDecimalString(term.amount),
+    dueCondition: term.due_condition
   }));
 }
 
@@ -350,23 +429,23 @@ async function fetchSinapiReferences(
   budgetId: string
 ): Promise<NonNullable<AxiaPmeBudgetContext["sinapiReferences"]>> {
   const { data, error } = await supabase
-    .from("pme_saved_sinapi_items")
+    .from("pme_budget_sinapi_snapshots")
     .select(
-      "sinapi_code,sinapi_description,state_code,reference_month,reference_year,original_unit_cost,adapted_unit_price"
+      "sinapi_code,sinapi_description,uf,reference_month,reference_year,original_total_cost,adapted_unit_price"
     )
     .eq("budget_id", budgetId);
 
   if (error !== null || !Array.isArray(data)) {
-    throw new Error("Could not read SINAPI references for Axia.");
+    throw new Error("Could not read SINAPI snapshots for Axia.");
   }
 
-  return data.filter(isSavedSinapiRow).map((reference) => ({
+  return data.filter(isSinapiSnapshotRow).map((reference) => ({
     code: reference.sinapi_code,
     description: reference.sinapi_description,
-    stateCode: reference.state_code,
+    stateCode: reference.uf,
     referenceMonth: reference.reference_month,
     referenceYear: reference.reference_year,
-    originalUnitCost: toDecimalString(reference.original_unit_cost),
+    originalUnitCost: toDecimalString(reference.original_total_cost),
     adaptedUnitPrice: toDecimalString(reference.adapted_unit_price)
   }));
 }
@@ -377,7 +456,8 @@ async function createRun(
     organizationId: string;
     budgetId: string | undefined;
     promptId: string;
-    task: AxiaPmeTask;
+    actionType: AxiaPmeActionType;
+    inputSummary: string;
   }
 ): Promise<RunRow> {
   const { data, error } = await context.supabase
@@ -386,9 +466,15 @@ async function createRun(
       organization_id: input.organizationId,
       budget_id: input.budgetId ?? null,
       prompt_id: input.promptId,
-      task: input.task,
+      task: input.actionType,
+      module: "pme_budgets",
+      action_type: input.actionType,
       status: "completed",
-      model: "axia-local-structured-v1",
+      model: "axia-local-structured-v2",
+      model_provider: "local",
+      model_name: "axia-local-structured-v2",
+      input_summary: input.inputSummary,
+      output_summary: "Sugestões estruturadas geradas para validação humana.",
       created_by: context.userId,
       completed_at: new Date().toISOString()
     })
@@ -408,18 +494,21 @@ async function createContextSnapshot(
     organizationId: string;
     runId: string;
     budgetId: string | undefined;
-    task: AxiaPmeTask;
+    actionType: AxiaPmeActionType;
     sanitizedContext: AxiaPmeBudgetContext;
+    redactionSummary: Record<string, number>;
     removedFields: string[];
   }
 ): Promise<void> {
   const { error } = await context.supabase.from("axia_context_snapshots").insert({
     organization_id: input.organizationId,
     run_id: input.runId,
+    axia_run_id: input.runId,
     budget_id: input.budgetId ?? null,
-    purpose: input.task,
+    purpose: input.actionType,
     sanitized_context: input.sanitizedContext,
-    removed_fields: [...new Set(input.removedFields)]
+    removed_fields: unique(input.removedFields),
+    redaction_summary: input.redactionSummary
   });
 
   if (error !== null) {
@@ -427,51 +516,126 @@ async function createContextSnapshot(
   }
 }
 
-async function createInsights(
+async function createRedactionLog(
+  context: AuthenticatedContext,
+  input: {
+    organizationId: string;
+    runId: string;
+    redactedFields: string[];
+  }
+): Promise<void> {
+  const fields = unique(input.redactedFields);
+  if (fields.length === 0) {
+    return;
+  }
+
+  const { error } = await context.supabase.from("axia_redaction_logs").insert({
+    organization_id: input.organizationId,
+    axia_run_id: input.runId,
+    redacted_fields: fields,
+    redaction_reason: "LGPD minimization before Axia PME assistant execution."
+  });
+
+  if (error !== null) {
+    throw new Error("Could not create Axia redaction log.");
+  }
+}
+
+async function createSuggestions(
   context: AuthenticatedContext,
   input: {
     organizationId: string;
     runId: string;
     budgetId: string | undefined;
-    insights: AxiaPmeInsight[];
+    suggestions: AxiaPmeSuggestion[];
   }
 ): Promise<void> {
-  const payload = input.insights.map((insight) => ({
-    organization_id: input.organizationId,
-    run_id: input.runId,
-    budget_id: input.budgetId ?? null,
-    insight_type: insight.type,
-    status: insight.status,
-    title: insight.title,
-    summary: insight.summary,
-    evidence: insight.evidence,
-    suggested_payload: insight.suggestedPayload
-  }));
-  const { error } = await context.supabase.from("axia_insights").insert(payload);
+  for (const suggestion of input.suggestions) {
+    const { data, error } = await context.supabase
+      .from("axia_suggestions")
+      .insert({
+        organization_id: input.organizationId,
+        axia_run_id: input.runId,
+        budget_id: input.budgetId ?? null,
+        suggestion_type: suggestion.type,
+        title: suggestion.title,
+        summary: suggestion.description,
+        severity: suggestion.severity,
+        status: "suggested",
+        confidence_score: suggestion.confidenceScore,
+        created_by: context.userId
+      })
+      .select("id")
+      .single();
 
-  if (error !== null) {
-    throw new Error("Could not create Axia insights.");
+    if (error !== null || !isRunRow(data)) {
+      throw new Error("Could not create Axia suggestion.");
+    }
+
+    const items = suggestion.items.map((item) => ({
+      organization_id: input.organizationId,
+      suggestion_id: data.id,
+      budget_id: input.budgetId ?? null,
+      suggested_action: item.suggestedAction,
+      suggested_payload: item.payload,
+      status: "suggested"
+    }));
+
+    if (items.length > 0) {
+      const { error: itemsError } = await context.supabase
+        .from("axia_suggestion_items")
+        .insert(items);
+      if (itemsError !== null) {
+        throw new Error("Could not create Axia suggestion items.");
+      }
+    }
   }
 }
 
 function isAxiaRequestBody(value: unknown): value is AxiaRequestBody {
-  if (!isRecord(value) || !isAxiaTask(value.task) || typeof value.userText !== "string") {
+  if (
+    !isRecord(value) ||
+    hasForbiddenAuthorizationKeys(value) ||
+    !isAxiaActionType(value.actionType)
+  ) {
     return false;
   }
 
-  return typeof value.budgetId === "undefined" || typeof value.budgetId === "string";
+  if (typeof value.budgetId !== "undefined" && typeof value.budgetId !== "string") {
+    return false;
+  }
+
+  if (typeof value.userMessage !== "undefined" && typeof value.userMessage !== "string") {
+    return false;
+  }
+
+  if (typeof value.userMessage === "string" && value.userMessage.length > 4000) {
+    return false;
+  }
+
+  return typeof value.options === "undefined" || isRecord(value.options);
 }
 
-function isAxiaTask(value: unknown): value is AxiaPmeTask {
+function hasForbiddenAuthorizationKeys(value: Record<string, unknown>): boolean {
   return (
+    "organization_id" in value ||
+    "organizationId" in value ||
+    "tenant_id" in value ||
+    "tenantId" in value ||
+    "user_id" in value ||
+    "userId" in value
+  );
+}
+
+function isAxiaActionType(value: unknown): value is AxiaPmeActionType {
+  return (
+    value === "create_budget_draft" ||
     value === "suggest_missing_items" ||
-    value === "draft_from_text" ||
-    value === "draft_from_renovation_description" ||
-    value === "suggest_environments_services" ||
-    value === "low_margin_alert" ||
-    value === "compare_sinapi_reference" ||
-    value === "commercial_proposal_text" ||
-    value === "execution_checklist"
+    value === "review_budget_margin" ||
+    value === "compare_with_sinapi" ||
+    value === "generate_proposal_text" ||
+    value === "generate_execution_checklist" ||
+    value === "explain_budget_to_client"
   );
 }
 
@@ -483,11 +647,13 @@ function isBudgetRow(value: unknown): value is BudgetRow {
     typeof value.budget_number === "string" &&
     typeof value.title === "string" &&
     (typeof value.description === "string" || value.description === null) &&
+    typeof value.budget_type === "string" &&
     typeof value.status === "string" &&
     isDecimalLike(value.subtotal_cost) &&
     isDecimalLike(value.final_price) &&
     isDecimalLike(value.profit_percentage) &&
-    isDecimalLike(value.tax_percentage)
+    isDecimalLike(value.tax_percentage) &&
+    isDecimalLike(value.discount_amount)
   );
 }
 
@@ -504,21 +670,33 @@ function isItemRow(value: unknown): value is ItemRow {
     isRecord(value) &&
     typeof value.description === "string" &&
     typeof value.item_type === "string" &&
+    (typeof value.category === "string" || value.category === null) &&
     typeof value.unit === "string" &&
     isDecimalLike(value.quantity) &&
+    isDecimalLike(value.unit_price) &&
     typeof value.show_on_proposal === "boolean"
   );
 }
 
-function isSavedSinapiRow(value: unknown): value is SavedSinapiRow {
+function isPaymentTermRow(value: unknown): value is PaymentTermRow {
+  return (
+    isRecord(value) &&
+    typeof value.description === "string" &&
+    (isDecimalLike(value.percentage) || value.percentage === null) &&
+    (isDecimalLike(value.amount) || value.amount === null) &&
+    (typeof value.due_condition === "string" || value.due_condition === null)
+  );
+}
+
+function isSinapiSnapshotRow(value: unknown): value is SinapiSnapshotRow {
   return (
     isRecord(value) &&
     typeof value.sinapi_code === "string" &&
     typeof value.sinapi_description === "string" &&
-    typeof value.state_code === "string" &&
+    typeof value.uf === "string" &&
     typeof value.reference_month === "number" &&
     typeof value.reference_year === "number" &&
-    isDecimalLike(value.original_unit_cost) &&
+    isDecimalLike(value.original_total_cost) &&
     isDecimalLike(value.adapted_unit_price)
   );
 }
@@ -549,6 +727,31 @@ function toDecimalString(value: DecimalLike): string {
   return String(value);
 }
 
+function summarizeInput(actionType: AxiaPmeActionType, message: string): string {
+  const trimmed = message.trim();
+  if (trimmed.length === 0) {
+    return actionType;
+  }
+
+  return `${actionType}: ${trimmed.slice(0, 180)}`;
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function statusFromError(message: string): number {
+  if (message.includes("not allowed") || message.includes("not accessible")) {
+    return 403;
+  }
+
+  if (message.includes("not found")) {
+    return 404;
+  }
+
+  return 400;
+}
+
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -569,6 +772,8 @@ function createUnavailableSupabaseClient(): SupabaseClientLike {
     },
     from: () => {
       throw new Error("Supabase client is not available.");
-    }
+    },
+    rpc: () =>
+      Promise.resolve({ data: null, error: new Error("Supabase client is not available.") })
   };
 }

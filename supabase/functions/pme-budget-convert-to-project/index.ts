@@ -1,12 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import {
+  attachProjectIdToConversionPlan,
   buildPmeBudgetConversionPlan,
-  buildProjectInsertFromBudget,
   type ConvertiblePmeBudget,
   type ConvertiblePmeEnvironment,
   type ConvertiblePmeItem,
-  type ConvertiblePmePaymentTerm
+  type ConvertiblePmeLabor,
+  type ConvertiblePmeMaterial,
+  type ConvertiblePmePaymentTerm,
+  type ConvertiblePmeSinapiSnapshot,
+  type PmeBudgetConversionPlan
 } from "../../../packages/domain/src/pme/convertToProject.ts";
 
 declare const Deno: {
@@ -18,7 +22,10 @@ declare const Deno: {
 
 interface ConvertRequestBody {
   budgetId: string;
-  projectId?: string;
+  confirmed: boolean;
+  optionalProjectName?: string;
+  optionalStartDate?: string;
+  optionalNotes?: string;
 }
 
 interface AuthenticatedContext {
@@ -43,7 +50,7 @@ interface QueryBuilderLike {
   eq: (column: string, value: string) => QueryBuilderLike;
   single: () => Promise<{ data: unknown; error: Error | null }>;
   maybeSingle: () => Promise<{ data: unknown; error: Error | null }>;
-  insert: (payload: Record<string, unknown>) => QueryBuilderLike;
+  insert: (payload: Record<string, unknown> | Array<Record<string, unknown>>) => QueryBuilderLike;
   update: (payload: Record<string, unknown>) => QueryBuilderLike;
   order: (column: string, options?: { ascending?: boolean }) => QueryBuilderLike;
 }
@@ -53,6 +60,8 @@ interface PmeBudgetRow {
   organization_id: string;
   budget_number: string;
   title: string;
+  client_name: string;
+  work_address: string | null;
   description: string | null;
   status: ConvertiblePmeBudget["status"];
   subtotal_cost: DecimalLike;
@@ -61,6 +70,7 @@ interface PmeBudgetRow {
   profit_percentage: DecimalLike;
   discount_amount: DecimalLike;
   final_price: DecimalLike;
+  valid_until: string | null;
   approved_at: string | null;
   converted_project_id: string | null;
 }
@@ -78,6 +88,8 @@ interface PmeItemRow {
   id: string;
   environment_id: string | null;
   item_type: ConvertiblePmeItem["itemType"];
+  category: string | null;
+  source_type: string | null;
   description: string;
   unit: string;
   quantity: DecimalLike;
@@ -85,24 +97,83 @@ interface PmeItemRow {
   unit_price: DecimalLike;
   subtotal_cost: DecimalLike;
   final_price: DecimalLike;
+  total_cost: DecimalLike;
+  total_price: DecimalLike;
   is_optional: boolean;
   show_on_proposal: boolean;
   sort_order: number;
 }
 
+interface PmeMaterialRow {
+  id: string;
+  budget_item_id: string | null;
+  item_id: string | null;
+  description: string;
+  unit: string;
+  quantity: DecimalLike;
+  unit_cost: DecimalLike;
+  total_cost: DecimalLike;
+  subtotal_cost: DecimalLike;
+  supplier_name: string | null;
+  purchase_status: string;
+}
+
+interface PmeLaborRow {
+  id: string;
+  budget_item_id: string | null;
+  item_id: string | null;
+  labor_type: string;
+  role_name: string | null;
+  unit: string;
+  quantity: DecimalLike;
+  unit_cost: DecimalLike;
+  days: DecimalLike;
+  total_cost: DecimalLike;
+  subtotal_cost: DecimalLike;
+  contract_type: string;
+}
+
 interface PmePaymentTermRow {
   id: string;
+  installment_number: number;
   description: string;
   due_offset_days: number;
+  due_condition: string | null;
+  due_date: string | null;
   amount: DecimalLike | null;
   percentage: DecimalLike | null;
   sort_order: number;
+}
+
+interface PmeSinapiSnapshotRow {
+  id: string;
+  budget_item_id: string;
+  sinapi_code: string;
+  sinapi_description: string;
+  uf: string;
+  reference_month: number;
+  reference_year: number;
+  regime: string;
+  original_unit: string;
+  original_total_cost: DecimalLike;
+  adapted_description: string;
+  adapted_unit: string;
+  adapted_quantity: DecimalLike;
+  adapted_unit_cost: DecimalLike;
+  adapted_unit_price: DecimalLike;
+  snapshot_data: Record<string, unknown>;
 }
 
 interface ProjectRow {
   id: string;
   organization_id: string;
   name: string;
+}
+
+interface ConversionResult {
+  projectId: string;
+  budgetId: string;
+  status: "converted_to_project";
 }
 
 type DecimalLike = string | number;
@@ -186,8 +257,19 @@ function unauthenticated(error: string): AuthenticationResult {
 async function convertApprovedBudgetToProject(
   context: AuthenticatedContext,
   body: ConvertRequestBody
-): Promise<{ projectId: string; budgetId: string; status: "converted_to_project" }> {
+): Promise<ConversionResult> {
+  if (!body.confirmed) {
+    throw new Error("Conversion must be explicitly confirmed.");
+  }
+
   const budget = await fetchBudget(context.supabase, body.budgetId);
+  if (budget.convertedProjectId !== null) {
+    return {
+      projectId: budget.convertedProjectId,
+      budgetId: budget.id,
+      status: "converted_to_project"
+    };
+  }
 
   const { data: hasRole, error: roleError } = await context.supabase.rpc("has_organization_role", {
     target_organization_id: budget.organizationId,
@@ -198,21 +280,34 @@ async function convertApprovedBudgetToProject(
     throw new Error("User is not allowed to convert this budget.");
   }
 
-  const [environments, items, paymentTerms] = await Promise.all([
+  const [environments, items, materials, labor, paymentTerms, sinapiSnapshots] = await Promise.all([
     fetchEnvironments(context.supabase, budget.id),
     fetchItems(context.supabase, budget.id),
-    fetchPaymentTerms(context.supabase, budget.id)
+    fetchMaterials(context.supabase, budget.id),
+    fetchLabor(context.supabase, budget.id),
+    fetchPaymentTerms(context.supabase, budget.id),
+    fetchSinapiSnapshots(context.supabase, budget.id)
   ]);
   const plan = buildPmeBudgetConversionPlan({
     budget,
     environments,
     items,
-    paymentTerms
+    materials,
+    labor,
+    paymentTerms,
+    sinapiSnapshots,
+    userId: context.userId,
+    optionalProjectName: body.optionalProjectName,
+    optionalStartDate: body.optionalStartDate,
+    optionalNotes: body.optionalNotes
   });
-  const project = await resolveProject(context, body.projectId, budget);
+  const project = await resolveProject(context, plan);
+  const planWithProject = attachProjectIdToConversionPlan(plan, project.id);
 
+  await persistConversionPackage(context, project, planWithProject);
   await updateBudgetAsConverted(context, budget.id, project.id);
-  await createAuditLog(context, project, plan);
+  await createStatusHistory(context, budget, project.id);
+  await createAuditLog(context, project, planWithProject);
 
   return {
     projectId: project.id,
@@ -233,6 +328,8 @@ async function fetchBudget(
         "organization_id",
         "budget_number",
         "title",
+        "client_name",
+        "work_address",
         "description",
         "status",
         "subtotal_cost",
@@ -241,6 +338,7 @@ async function fetchBudget(
         "profit_percentage",
         "discount_amount",
         "final_price",
+        "valid_until",
         "approved_at",
         "converted_project_id"
       ].join(",")
@@ -257,6 +355,8 @@ async function fetchBudget(
     organizationId: data.organization_id,
     budgetNumber: data.budget_number,
     title: data.title,
+    clientName: data.client_name,
+    workAddress: data.work_address,
     description: data.description,
     status: data.status,
     subtotalCost: toDecimalString(data.subtotal_cost),
@@ -265,6 +365,7 @@ async function fetchBudget(
     profitPercentage: toDecimalString(data.profit_percentage),
     discountAmount: toDecimalString(data.discount_amount),
     finalPrice: toDecimalString(data.final_price),
+    validUntil: data.valid_until,
     approvedAt: data.approved_at,
     convertedProjectId: data.converted_project_id
   };
@@ -305,6 +406,8 @@ async function fetchItems(
         "id",
         "environment_id",
         "item_type",
+        "category",
+        "source_type",
         "description",
         "unit",
         "quantity",
@@ -312,6 +415,8 @@ async function fetchItems(
         "unit_price",
         "subtotal_cost",
         "final_price",
+        "total_cost",
+        "total_price",
         "is_optional",
         "show_on_proposal",
         "sort_order"
@@ -328,6 +433,8 @@ async function fetchItems(
     id: row.id,
     environmentId: row.environment_id,
     itemType: row.item_type,
+    category: row.category,
+    sourceType: row.source_type,
     description: row.description,
     unit: row.unit,
     quantity: toDecimalString(row.quantity),
@@ -335,9 +442,93 @@ async function fetchItems(
     unitPrice: toDecimalString(row.unit_price),
     subtotalCost: toDecimalString(row.subtotal_cost),
     finalPrice: toDecimalString(row.final_price),
+    totalCost: toDecimalString(row.total_cost),
+    totalPrice: toDecimalString(row.total_price),
     isOptional: row.is_optional,
     showOnProposal: row.show_on_proposal,
     sortOrder: row.sort_order
+  }));
+}
+
+async function fetchMaterials(
+  supabase: SupabaseClientLike,
+  budgetId: string
+): Promise<ConvertiblePmeMaterial[]> {
+  const { data, error } = await supabase
+    .from("pme_budget_materials")
+    .select(
+      [
+        "id",
+        "budget_item_id",
+        "item_id",
+        "description",
+        "unit",
+        "quantity",
+        "unit_cost",
+        "total_cost",
+        "subtotal_cost",
+        "supplier_name",
+        "purchase_status"
+      ].join(",")
+    )
+    .eq("budget_id", budgetId);
+
+  if (error !== null || !Array.isArray(data)) {
+    throw new Error("Could not read budget materials.");
+  }
+
+  return data.filter(isPmeMaterialRow).map((row) => ({
+    id: row.id,
+    budgetItemId: row.budget_item_id ?? row.item_id,
+    description: row.description,
+    unit: row.unit,
+    quantity: toDecimalString(row.quantity),
+    unitCost: toDecimalString(row.unit_cost),
+    totalCost: toDecimalString(row.total_cost),
+    supplierName: row.supplier_name,
+    purchaseStatus: row.purchase_status
+  }));
+}
+
+async function fetchLabor(
+  supabase: SupabaseClientLike,
+  budgetId: string
+): Promise<ConvertiblePmeLabor[]> {
+  const { data, error } = await supabase
+    .from("pme_budget_labor")
+    .select(
+      [
+        "id",
+        "budget_item_id",
+        "item_id",
+        "labor_type",
+        "role_name",
+        "unit",
+        "quantity",
+        "unit_cost",
+        "days",
+        "total_cost",
+        "subtotal_cost",
+        "contract_type"
+      ].join(",")
+    )
+    .eq("budget_id", budgetId);
+
+  if (error !== null || !Array.isArray(data)) {
+    throw new Error("Could not read budget labor.");
+  }
+
+  return data.filter(isPmeLaborRow).map((row) => ({
+    id: row.id,
+    budgetItemId: row.budget_item_id ?? row.item_id,
+    laborType: row.labor_type,
+    roleName: row.role_name,
+    unit: row.unit,
+    quantity: toDecimalString(row.quantity),
+    unitCost: toDecimalString(row.unit_cost),
+    days: toDecimalString(row.days),
+    totalCost: toDecimalString(row.total_cost),
+    contractType: row.contract_type
   }));
 }
 
@@ -347,7 +538,9 @@ async function fetchPaymentTerms(
 ): Promise<ConvertiblePmePaymentTerm[]> {
   const { data, error } = await supabase
     .from("pme_budget_payment_terms")
-    .select("id,description,due_offset_days,amount,percentage,sort_order")
+    .select(
+      "id,installment_number,description,due_offset_days,due_condition,due_date,amount,percentage,sort_order"
+    )
     .eq("budget_id", budgetId)
     .order("sort_order", { ascending: true });
 
@@ -357,32 +550,85 @@ async function fetchPaymentTerms(
 
   return data.filter(isPmePaymentTermRow).map((row) => ({
     id: row.id,
+    installmentNumber: row.installment_number,
     description: row.description,
     dueOffsetDays: row.due_offset_days,
+    dueCondition: row.due_condition,
+    dueDate: row.due_date,
     amount: row.amount === null ? null : toDecimalString(row.amount),
     percentage: row.percentage === null ? null : toDecimalString(row.percentage),
     sortOrder: row.sort_order
   }));
 }
 
+async function fetchSinapiSnapshots(
+  supabase: SupabaseClientLike,
+  budgetId: string
+): Promise<ConvertiblePmeSinapiSnapshot[]> {
+  const { data, error } = await supabase
+    .from("pme_budget_sinapi_snapshots")
+    .select(
+      [
+        "id",
+        "budget_item_id",
+        "sinapi_code",
+        "sinapi_description",
+        "uf",
+        "reference_month",
+        "reference_year",
+        "regime",
+        "original_unit",
+        "original_total_cost",
+        "adapted_description",
+        "adapted_unit",
+        "adapted_quantity",
+        "adapted_unit_cost",
+        "adapted_unit_price",
+        "snapshot_data"
+      ].join(",")
+    )
+    .eq("budget_id", budgetId);
+
+  if (error !== null || !Array.isArray(data)) {
+    throw new Error("Could not read SINAPI snapshots.");
+  }
+
+  return data.filter(isPmeSinapiSnapshotRow).map((row) => ({
+    id: row.id,
+    budgetItemId: row.budget_item_id,
+    sinapiCode: row.sinapi_code,
+    sinapiDescription: row.sinapi_description,
+    uf: row.uf,
+    referenceMonth: row.reference_month,
+    referenceYear: row.reference_year,
+    regime: row.regime,
+    originalUnit: row.original_unit,
+    originalTotalCost: toDecimalString(row.original_total_cost),
+    adaptedDescription: row.adapted_description,
+    adaptedUnit: row.adapted_unit,
+    adaptedQuantity: toDecimalString(row.adapted_quantity),
+    adaptedUnitCost: toDecimalString(row.adapted_unit_cost),
+    adaptedUnitPrice: toDecimalString(row.adapted_unit_price),
+    snapshotData: row.snapshot_data
+  }));
+}
+
 async function resolveProject(
   context: AuthenticatedContext,
-  projectId: string | undefined,
-  budget: ConvertiblePmeBudget
+  plan: PmeBudgetConversionPlan
 ): Promise<ProjectRow> {
-  if (typeof projectId === "string") {
-    const project = await fetchProject(context.supabase, projectId);
-
-    if (project.organization_id !== budget.organizationId) {
-      throw new Error("Project does not belong to the budget organization.");
-    }
-
-    return project;
+  const existingProject = await fetchProjectByPmeBudgetSource(
+    context.supabase,
+    plan.budget.organizationId,
+    plan.budget.id
+  );
+  if (existingProject !== null) {
+    return existingProject;
   }
 
   const { data, error } = await context.supabase
     .from("projects")
-    .insert(buildProjectInsertFromBudget({ budget, userId: context.userId }))
+    .insert(plan.project)
     .select("id,organization_id,name")
     .single();
 
@@ -393,18 +639,71 @@ async function resolveProject(
   return data;
 }
 
-async function fetchProject(supabase: SupabaseClientLike, projectId: string): Promise<ProjectRow> {
+async function fetchProjectByPmeBudgetSource(
+  supabase: SupabaseClientLike,
+  organizationId: string,
+  budgetId: string
+): Promise<ProjectRow | null> {
   const { data, error } = await supabase
     .from("projects")
     .select("id,organization_id,name")
-    .eq("id", projectId)
+    .eq("organization_id", organizationId)
+    .eq("source_module", "pme_budget")
+    .eq("source_id", budgetId)
     .maybeSingle();
 
-  if (error !== null || data === null || !isProjectRow(data)) {
-    throw new Error("Project was not found or is not accessible.");
+  if (error !== null) {
+    throw new Error("Could not verify existing project conversion.");
   }
 
-  return data;
+  return isProjectRow(data) ? data : null;
+}
+
+async function persistConversionPackage(
+  context: AuthenticatedContext,
+  project: ProjectRow,
+  plan: PmeBudgetConversionPlan
+): Promise<void> {
+  await insertRow(context.supabase, "pme_project_budget_snapshots", plan.budgetSnapshot);
+
+  if (plan.initialCostForecast.length > 0) {
+    await insertRows(context.supabase, "pme_project_cost_forecasts", plan.initialCostForecast);
+  }
+
+  await insertRows(
+    context.supabase,
+    "pme_project_receivable_forecasts",
+    plan.initialReceivablesForecast
+  );
+  await insertRow(context.supabase, "pme_budget_conversion_logs", plan.conversionLog);
+
+  if (project.organization_id !== plan.budget.organizationId) {
+    throw new Error("Project does not belong to the budget organization.");
+  }
+}
+
+async function insertRow(
+  supabase: SupabaseClientLike,
+  table: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const { error } = await supabase.from(table).insert(payload);
+
+  if (error !== null) {
+    throw new Error(`Could not insert ${table}.`);
+  }
+}
+
+async function insertRows(
+  supabase: SupabaseClientLike,
+  table: string,
+  payload: Array<Record<string, unknown>>
+): Promise<void> {
+  const { error } = await supabase.from(table).insert(payload);
+
+  if (error !== null) {
+    throw new Error(`Could not insert ${table}.`);
+  }
 }
 
 async function updateBudgetAsConverted(
@@ -427,41 +726,64 @@ async function updateBudgetAsConverted(
   }
 }
 
+async function createStatusHistory(
+  context: AuthenticatedContext,
+  budget: ConvertiblePmeBudget,
+  projectId: string
+): Promise<void> {
+  await insertRow(context.supabase, "pme_budget_status_history", {
+    organization_id: budget.organizationId,
+    budget_id: budget.id,
+    from_status: budget.status,
+    to_status: "converted_to_project",
+    notes: `Convertido para obra ${projectId}.`,
+    changed_by: context.userId
+  });
+}
+
 async function createAuditLog(
   context: AuthenticatedContext,
   project: ProjectRow,
-  plan: ReturnType<typeof buildPmeBudgetConversionPlan>
+  plan: PmeBudgetConversionPlan
 ): Promise<void> {
-  const { error } = await context.supabase.from("audit_logs").insert({
+  await insertRow(context.supabase, "audit_logs", {
     organization_id: plan.budget.organizationId,
     actor_user_id: context.userId,
     action: "pme_budget.converted_to_project",
     entity_table: "pme_budgets",
     entity_id: plan.budget.id,
     metadata: {
+      ...plan.auditMetadata,
       projectId: project.id,
-      projectName: project.name,
-      budgetId: plan.budget.id,
-      budgetNumber: plan.budget.budgetNumber,
-      environments: plan.environments,
-      copiedItems: plan.items,
-      initialCostForecast: plan.initialCostForecast,
-      initialReceivablesForecast: plan.initialReceivablesForecast,
-      calculation: plan.calculation
+      projectName: project.name
     }
   });
-
-  if (error !== null) {
-    throw new Error("Could not create audit log for budget conversion.");
-  }
 }
 
 function isConvertRequestBody(value: unknown): value is ConvertRequestBody {
-  if (!isRecord(value) || typeof value.budgetId !== "string") {
+  if (
+    !isRecord(value) ||
+    typeof value.budgetId !== "string" ||
+    typeof value.confirmed !== "boolean"
+  ) {
     return false;
   }
 
-  return typeof value.projectId === "undefined" || typeof value.projectId === "string";
+  return (
+    isOptionalSafeString(value.optionalProjectName, 120) &&
+    isOptionalIsoDate(value.optionalStartDate) &&
+    isOptionalSafeString(value.optionalNotes, 1000)
+  );
+}
+
+function isOptionalSafeString(value: unknown, maxLength: number): boolean {
+  return typeof value === "undefined" || (typeof value === "string" && value.length <= maxLength);
+}
+
+function isOptionalIsoDate(value: unknown): boolean {
+  return (
+    typeof value === "undefined" || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+  );
 }
 
 function isPmeBudgetRow(value: unknown): value is PmeBudgetRow {
@@ -471,6 +793,8 @@ function isPmeBudgetRow(value: unknown): value is PmeBudgetRow {
     typeof value.organization_id === "string" &&
     typeof value.budget_number === "string" &&
     typeof value.title === "string" &&
+    typeof value.client_name === "string" &&
+    (typeof value.work_address === "string" || value.work_address === null) &&
     (typeof value.description === "string" || value.description === null) &&
     isPmeBudgetStatus(value.status) &&
     isDecimalLike(value.subtotal_cost) &&
@@ -479,6 +803,7 @@ function isPmeBudgetRow(value: unknown): value is PmeBudgetRow {
     isDecimalLike(value.profit_percentage) &&
     isDecimalLike(value.discount_amount) &&
     isDecimalLike(value.final_price) &&
+    (typeof value.valid_until === "string" || value.valid_until === null) &&
     (typeof value.approved_at === "string" || value.approved_at === null) &&
     (typeof value.converted_project_id === "string" || value.converted_project_id === null)
   );
@@ -514,6 +839,8 @@ function isPmeItemRow(value: unknown): value is PmeItemRow {
     typeof value.id === "string" &&
     (typeof value.environment_id === "string" || value.environment_id === null) &&
     isPmeItemType(value.item_type) &&
+    (typeof value.category === "string" || value.category === null) &&
+    (typeof value.source_type === "string" || value.source_type === null) &&
     typeof value.description === "string" &&
     typeof value.unit === "string" &&
     isDecimalLike(value.quantity) &&
@@ -521,6 +848,8 @@ function isPmeItemRow(value: unknown): value is PmeItemRow {
     isDecimalLike(value.unit_price) &&
     isDecimalLike(value.subtotal_cost) &&
     isDecimalLike(value.final_price) &&
+    isDecimalLike(value.total_cost) &&
+    isDecimalLike(value.total_price) &&
     typeof value.is_optional === "boolean" &&
     typeof value.show_on_proposal === "boolean" &&
     typeof value.sort_order === "number"
@@ -537,15 +866,75 @@ function isPmeItemType(value: unknown): value is ConvertiblePmeItem["itemType"] 
   );
 }
 
+function isPmeMaterialRow(value: unknown): value is PmeMaterialRow {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    (typeof value.budget_item_id === "string" || value.budget_item_id === null) &&
+    (typeof value.item_id === "string" || value.item_id === null) &&
+    typeof value.description === "string" &&
+    typeof value.unit === "string" &&
+    isDecimalLike(value.quantity) &&
+    isDecimalLike(value.unit_cost) &&
+    isDecimalLike(value.total_cost) &&
+    isDecimalLike(value.subtotal_cost) &&
+    (typeof value.supplier_name === "string" || value.supplier_name === null) &&
+    typeof value.purchase_status === "string"
+  );
+}
+
+function isPmeLaborRow(value: unknown): value is PmeLaborRow {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    (typeof value.budget_item_id === "string" || value.budget_item_id === null) &&
+    (typeof value.item_id === "string" || value.item_id === null) &&
+    typeof value.labor_type === "string" &&
+    (typeof value.role_name === "string" || value.role_name === null) &&
+    typeof value.unit === "string" &&
+    isDecimalLike(value.quantity) &&
+    isDecimalLike(value.unit_cost) &&
+    isDecimalLike(value.days) &&
+    isDecimalLike(value.total_cost) &&
+    isDecimalLike(value.subtotal_cost) &&
+    typeof value.contract_type === "string"
+  );
+}
+
 function isPmePaymentTermRow(value: unknown): value is PmePaymentTermRow {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
+    typeof value.installment_number === "number" &&
     typeof value.description === "string" &&
     typeof value.due_offset_days === "number" &&
+    (typeof value.due_condition === "string" || value.due_condition === null) &&
+    (typeof value.due_date === "string" || value.due_date === null) &&
     (isDecimalLike(value.amount) || value.amount === null) &&
     (isDecimalLike(value.percentage) || value.percentage === null) &&
     typeof value.sort_order === "number"
+  );
+}
+
+function isPmeSinapiSnapshotRow(value: unknown): value is PmeSinapiSnapshotRow {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.budget_item_id === "string" &&
+    typeof value.sinapi_code === "string" &&
+    typeof value.sinapi_description === "string" &&
+    typeof value.uf === "string" &&
+    typeof value.reference_month === "number" &&
+    typeof value.reference_year === "number" &&
+    typeof value.regime === "string" &&
+    typeof value.original_unit === "string" &&
+    isDecimalLike(value.original_total_cost) &&
+    typeof value.adapted_description === "string" &&
+    typeof value.adapted_unit === "string" &&
+    isDecimalLike(value.adapted_quantity) &&
+    isDecimalLike(value.adapted_unit_cost) &&
+    isDecimalLike(value.adapted_unit_price) &&
+    isRecord(value.snapshot_data)
   );
 }
 

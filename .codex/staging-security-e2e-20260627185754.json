@@ -1,0 +1,722 @@
+{
+  "runId": "20260627185754",
+  "projectRefConfirmed": true,
+  "url": "https://ndfivxfmijjwakeeunhd.supabase.co",
+  "users": [
+    {
+      "email": "admin-org-a-20260627185754@staging.obrasys.local",
+      "id": "a0972a75-5726-4af5-b0d0-6684e739910e",
+      "organizationId": "10000000-0000-0000-0000-000000000001",
+      "role": "admin"
+    },
+    {
+      "email": "engenheiro-obra-a-20260627185754@staging.obrasys.local",
+      "id": "5e86a350-421c-4347-a28c-9af607ca58b7",
+      "organizationId": "10000000-0000-0000-0000-000000000001",
+      "role": "manager"
+    },
+    {
+      "email": "mestre-obra-a-20260627185754@staging.obrasys.local",
+      "id": "7a7a165c-c404-42d1-8825-2964168f2529",
+      "organizationId": "10000000-0000-0000-0000-000000000001",
+      "role": "member"
+    },
+    {
+      "email": "sem-financeiro-a-20260627185754@staging.obrasys.local",
+      "id": "152836b3-3807-449a-a7bc-a9895a919c37",
+      "organizationId": "10000000-0000-0000-0000-000000000001",
+      "role": "member"
+    },
+    {
+      "email": "admin-org-b-20260627185754@staging.obrasys.local",
+      "id": "163b3f3f-a7a9-432e-a0b8-47a0c135f488",
+      "organizationId": "10000000-0000-0000-0000-000000000002",
+      "role": "admin"
+    },
+    {
+      "email": "engenheiro-obra-b-20260627185754@staging.obrasys.local",
+      "id": "9cb78b3d-4747-4b39-993f-f3047b508419",
+      "organizationId": "10000000-0000-0000-0000-000000000002",
+      "role": "manager"
+    }
+  ],
+  "organizations": [
+    "10000000-0000-0000-0000-000000000001",
+    "10000000-0000-0000-0000-000000000002"
+  ],
+  "tables": [
+    {
+      "table": "pme_budgets",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budgets",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budgets",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_budgets\\\"\"}"
+    },
+    {
+      "table": "pme_budgets",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budget_items",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budget_items",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budget_items",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_budget_items\\\"\"}"
+    },
+    {
+      "table": "pme_budget_items",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budget_exports",
+      "status": "skipped",
+      "reason": "table missing or no sample"
+    },
+    {
+      "table": "projects",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "projects",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "projects",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"projects\\\"\"}"
+    },
+    {
+      "table": "projects",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_tasks",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_tasks",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_tasks",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_tasks\\\"\"}"
+    },
+    {
+      "table": "pme_project_tasks",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_actual_costs",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_actual_costs",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_actual_costs",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_actual_costs\\\"\"}"
+    },
+    {
+      "table": "pme_project_actual_costs",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_receipts",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_receipts",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_receipts",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_receipts\\\"\"}"
+    },
+    {
+      "table": "pme_project_receipts",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_daily_logs",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_daily_logs",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_daily_logs",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_daily_logs\\\"\"}"
+    },
+    {
+      "table": "pme_project_daily_logs",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_photos",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_photos",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_photos",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_photos\\\"\"}"
+    },
+    {
+      "table": "pme_project_photos",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_attachments",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_attachments",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_attachments",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_attachments\\\"\"}"
+    },
+    {
+      "table": "pme_project_attachments",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_suppliers",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_suppliers",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_suppliers",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_suppliers\\\"\"}"
+    },
+    {
+      "table": "pme_suppliers",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_purchase_orders",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_purchase_orders",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_purchase_orders",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_purchase_orders\\\"\"}"
+    },
+    {
+      "table": "pme_purchase_orders",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_reports",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_reports",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_reports",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_reports\\\"\"}"
+    },
+    {
+      "table": "pme_project_reports",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_report_exports",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_report_exports",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_report_exports",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_report_exports\\\"\"}"
+    },
+    {
+      "table": "pme_project_report_exports",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_notifications",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_notifications",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_notifications",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_notifications\\\"\"}"
+    },
+    {
+      "table": "pme_notifications",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_runs",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_runs",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_runs",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"axia_runs\\\"\"}"
+    },
+    {
+      "table": "axia_runs",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_context_snapshots",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_context_snapshots",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_context_snapshots",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"axia_context_snapshots\\\"\"}"
+    },
+    {
+      "table": "axia_context_snapshots",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "audit_logs",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "audit_logs",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "audit_logs",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"audit_logs\\\"\"}"
+    },
+    {
+      "table": "audit_logs",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    }
+  ],
+  "edgeFunctions": [
+    {
+      "name": "pme-budget-convert-to-project",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 403,
+      "body": "{\"error\":\"Budget was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-budget-generate-proposal",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 400,
+      "body": "{\"error\":\"Invalid proposal payload.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-create-actual-cost",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Project was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-create-receipt",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Project was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-lock-daily-log",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Daily log was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-generate-report",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Project was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-close",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Closeout was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-notifications-generate",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 400,
+      "body": "{\"error\":\"Invalid notification generation payload.\"}",
+      "passed": true
+    },
+    {
+      "name": "axia-pme-budget-assistant",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 400,
+      "body": "{\"error\":\"Invalid Axia payload.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-daily-log-process-voice",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 400,
+      "body": "{\"error\":\"Invalid voice payload.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-daily-log-fetch-weather",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 400,
+      "body": "{\"error\":\"Invalid weather payload.\"}",
+      "passed": true
+    }
+  ],
+  "storage": [
+    {
+      "bucket": "project-photos",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/project-photos/20260627185754-project-photos.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 200,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": true
+    },
+    {
+      "bucket": "project-attachments",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/project-attachments/20260627185754-project-attachments.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 200,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": true
+    },
+    {
+      "bucket": "budget-proposals",
+      "path": "10000000-0000-0000-0000-000000000001/budgets/20000000-0000-0000-0000-000000000001/proposals/20260627185754-budget-proposals.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 200,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": true
+    },
+    {
+      "bucket": "project-reports",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/reports/report-20260627185754/exports/20260627185754-project-reports.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 200,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": true
+    },
+    {
+      "bucket": "purchase-attachments",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/purchases/purchase-20260627185754/attachments/20260627185754-purchase-attachments.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 200,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": true
+    },
+    {
+      "bucket": "daily-log-photos",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/daily_logs/60000000-0000-0000-0000-000000000001/photos/20260627185754-daily-log-photos.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 200,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": true
+    }
+  ],
+  "financialPermissions": [
+    {
+      "label": "orçamento",
+      "status": 200,
+      "passed": true,
+      "body": "[]"
+    },
+    {
+      "label": "obra custos",
+      "status": 200,
+      "passed": true,
+      "body": "[]"
+    },
+    {
+      "label": "relatórios",
+      "status": 200,
+      "passed": true,
+      "body": "[{\"id\":\"70000000-0000-0000-0000-000000000001\",\"organization_id\":\"10000000-0000-0000-0000-000000000001\",\"project_id\":\"30000000-0000-0000-0000-000000000001\",\"report_type\":\"client_delivery\",\"title\":\"Relatorio demo para cliente\",\"description\":\"Relatorio sanitizado para validar staging.\",\"visibility\":\"client\",\"data_snapshot\":{\"status\":\"demo\",\"project\":\"Obra Demo PME\",\"hiddenFields\":[\"actual_cost\",\"profit\",\"margin\"]},\"generated_by\":\"00000000-0000-0000-0000-000000000101\",\"generated_at\":\"2026-06-27T16:2..."
+    },
+    {
+      "label": "notificações",
+      "status": 200,
+      "passed": true,
+      "body": "[]"
+    }
+  ],
+  "failures": [],
+  "warnings": []
+}

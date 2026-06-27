@@ -6,7 +6,20 @@ const PERCENT_DENOMINATOR = 100n * PERCENT_SCALE;
 export interface PmeBudgetCalculationItemInput {
   id?: string;
   description: string;
-  kind: "service" | "material" | "labor" | "third_party";
+  kind:
+    | "service"
+    | "material"
+    | "labor"
+    | "third_party"
+    | "servico"
+    | "mao_de_obra"
+    | "terceiro"
+    | "equipamento"
+    | "transporte"
+    | "descarte"
+    | "taxa"
+    | "composicao"
+    | "outro";
   quantity: string;
   unitCost: string;
   unitPrice: string;

@@ -19,6 +19,8 @@ export interface ConvertiblePmeBudget {
   organizationId: string;
   budgetNumber: string;
   title: string;
+  clientName: string;
+  workAddress: string | null;
   description: string | null;
   status: ConvertiblePmeBudgetStatus;
   subtotalCost: string;
@@ -27,6 +29,7 @@ export interface ConvertiblePmeBudget {
   profitPercentage: string;
   discountAmount: string;
   finalPrice: string;
+  validUntil: string | null;
   approvedAt: string | null;
   convertedProjectId: string | null;
 }
@@ -44,6 +47,8 @@ export interface ConvertiblePmeItem {
   id: string;
   environmentId: string | null;
   itemType: "service" | "material" | "labor" | "equipment" | "other";
+  category: string | null;
+  sourceType: string | null;
   description: string;
   unit: string;
   quantity: string;
@@ -51,46 +56,151 @@ export interface ConvertiblePmeItem {
   unitPrice: string;
   subtotalCost: string;
   finalPrice: string;
+  totalCost: string;
+  totalPrice: string;
   isOptional: boolean;
   showOnProposal: boolean;
   sortOrder: number;
 }
 
+export interface ConvertiblePmeMaterial {
+  id: string;
+  budgetItemId: string | null;
+  description: string;
+  unit: string;
+  quantity: string;
+  unitCost: string;
+  totalCost: string;
+  supplierName: string | null;
+  purchaseStatus: string;
+}
+
+export interface ConvertiblePmeLabor {
+  id: string;
+  budgetItemId: string | null;
+  laborType: string;
+  roleName: string | null;
+  unit: string;
+  quantity: string;
+  unitCost: string;
+  days: string;
+  totalCost: string;
+  contractType: string;
+}
+
 export interface ConvertiblePmePaymentTerm {
   id: string;
+  installmentNumber: number;
   description: string;
   dueOffsetDays: number;
+  dueCondition: string | null;
+  dueDate: string | null;
   amount: string | null;
   percentage: string | null;
   sortOrder: number;
+}
+
+export interface ConvertiblePmeSinapiSnapshot {
+  id: string;
+  budgetItemId: string;
+  sinapiCode: string;
+  sinapiDescription: string;
+  uf: string;
+  referenceMonth: number;
+  referenceYear: number;
+  regime: string;
+  originalUnit: string;
+  originalTotalCost: string;
+  adaptedDescription: string;
+  adaptedUnit: string;
+  adaptedQuantity: string;
+  adaptedUnitCost: string;
+  adaptedUnitPrice: string;
+  snapshotData: Record<string, unknown>;
 }
 
 export interface PmeBudgetConversionPlan {
   budget: ConvertiblePmeBudget;
   environments: ConvertiblePmeEnvironment[];
   items: ConvertiblePmeItem[];
+  materials: ConvertiblePmeMaterial[];
+  labor: ConvertiblePmeLabor[];
   paymentTerms: ConvertiblePmePaymentTerm[];
+  sinapiSnapshots: ConvertiblePmeSinapiSnapshot[];
   calculation: PmeBudgetCalculationResult;
+  project: PmeProjectInsert;
+  budgetSnapshot: PmeProjectBudgetSnapshotInsert;
   initialCostForecast: PmeProjectCostForecast[];
   initialReceivablesForecast: PmeProjectReceivableForecast[];
+  conversionLog: PmeBudgetConversionLogInsert;
+  auditMetadata: Record<string, unknown>;
+}
+
+export interface PmeProjectInsert {
+  organization_id: string;
+  created_by: string;
+  name: string;
+  code: string;
+  description: string;
+  status: "planning";
+  starts_on?: string | undefined;
+  source_module: "pme_budget";
+  source_id: string;
+  work_address: string | null;
+}
+
+export interface PmeProjectBudgetSnapshotInsert {
+  organization_id: string;
+  project_id?: string;
+  source_pme_budget_id: string;
+  version_code: string;
+  title: string;
+  subtotal_cost: string;
+  final_price: string;
+  snapshot_data: Record<string, unknown>;
+  created_by: string;
 }
 
 export interface PmeProjectCostForecast {
-  sourceBudgetItemId: string;
+  organization_id: string;
+  project_id?: string;
+  source_pme_budget_id: string;
+  source_budget_item_id: string | null;
+  source_type: "item" | "material" | "labor" | "third_party" | "sinapi_snapshot" | "manual";
   description: string;
-  unit: string;
+  category: string | null;
   quantity: string;
-  plannedCost: string;
-  plannedSalePrice: string;
-  environmentId: string | null;
+  unit: string;
+  unit_cost: string;
+  total_cost: string;
+  expected_date: string | null;
+  status: "planned";
 }
 
 export interface PmeProjectReceivableForecast {
-  sourcePaymentTermId: string;
+  organization_id: string;
+  project_id?: string;
+  source_pme_budget_id: string;
+  source_payment_term_id: string | null;
+  installment_number: number;
   description: string;
-  dueOffsetDays: number;
-  plannedAmount: string;
   percentage: string | null;
+  amount: string;
+  due_condition: string;
+  due_date: string | null;
+  status: "planned";
+}
+
+export interface PmeBudgetConversionLogInsert {
+  organization_id: string;
+  budget_id: string;
+  project_id?: string;
+  converted_by: string;
+  status: "success";
+  source_budget_status: ConvertiblePmeBudgetStatus;
+  source_budget_final_price: string;
+  source_budget_subtotal_cost: string;
+  snapshot_data: Record<string, unknown>;
 }
 
 export function assertPmeBudgetCanConvert(budget: ConvertiblePmeBudget): void {
@@ -111,50 +221,166 @@ export function buildPmeBudgetConversionPlan(input: {
   budget: ConvertiblePmeBudget;
   environments: ConvertiblePmeEnvironment[];
   items: ConvertiblePmeItem[];
+  materials?: ConvertiblePmeMaterial[];
+  labor?: ConvertiblePmeLabor[];
   paymentTerms: ConvertiblePmePaymentTerm[];
+  sinapiSnapshots?: ConvertiblePmeSinapiSnapshot[];
+  userId?: string;
+  optionalProjectName?: string | undefined;
+  optionalStartDate?: string | undefined;
+  optionalNotes?: string | undefined;
 }): PmeBudgetConversionPlan {
   assertPmeBudgetCanConvert(input.budget);
 
+  const userId = input.userId ?? "";
+  const materials = input.materials ?? [];
+  const labor = input.labor ?? [];
+  const sinapiSnapshots = input.sinapiSnapshots ?? [];
+  const copiedItems = input.items.filter(shouldCopyItem);
   const calculationInput: PmeBudgetCalculationInput = {
-    items: input.items.filter(shouldCopyItem).map(toCalculationItem),
+    items: [
+      ...copiedItems.map(toCalculationItem),
+      ...materials.map(toMaterialCalculationItem),
+      ...labor.map(toLaborCalculationItem)
+    ],
     overheadPercentage: input.budget.overheadPercentage,
     taxPercentage: input.budget.taxPercentage,
     profitPercentage: input.budget.profitPercentage,
     discountAmount: input.budget.discountAmount
   };
   const calculation = calculatePmeBudget(calculationInput);
+  const snapshotData = buildSnapshotData({
+    budget: input.budget,
+    environments: input.environments,
+    items: copiedItems,
+    materials,
+    labor,
+    paymentTerms: input.paymentTerms,
+    sinapiSnapshots,
+    calculation,
+    optionalNotes: input.optionalNotes
+  });
+  const project = buildProjectInsertFromBudget({
+    budget: input.budget,
+    userId,
+    optionalProjectName: input.optionalProjectName,
+    optionalStartDate: input.optionalStartDate
+  });
+  const initialCostForecast = [
+    ...copiedItems.map((item) =>
+      toItemCostForecast(item, input.budget.organizationId, input.budget.id)
+    ),
+    ...materials.map((material) =>
+      toMaterialCostForecast(material, input.budget.organizationId, input.budget.id)
+    ),
+    ...labor.map((entry) =>
+      toLaborCostForecast(entry, input.budget.organizationId, input.budget.id)
+    )
+  ];
+  const initialReceivablesForecast = buildReceivablesForecast({
+    organizationId: input.budget.organizationId,
+    budgetId: input.budget.id,
+    paymentTerms: input.paymentTerms,
+    finalPrice: calculation.finalPrice
+  });
 
   return {
     budget: input.budget,
     environments: input.environments,
-    items: input.items.filter(shouldCopyItem),
+    items: copiedItems,
+    materials,
+    labor,
     paymentTerms: input.paymentTerms,
+    sinapiSnapshots,
     calculation,
-    initialCostForecast: input.items.filter(shouldCopyItem).map(toCostForecast),
-    initialReceivablesForecast: input.paymentTerms.map((term) =>
-      toReceivableForecast(term, calculation.finalPrice)
-    )
+    project,
+    budgetSnapshot: {
+      organization_id: input.budget.organizationId,
+      source_pme_budget_id: input.budget.id,
+      version_code: `PME-${input.budget.budgetNumber}-CONVERTED`,
+      title: input.budget.title,
+      subtotal_cost: calculation.subtotalCost,
+      final_price: calculation.finalPrice,
+      snapshot_data: snapshotData,
+      created_by: userId
+    },
+    initialCostForecast,
+    initialReceivablesForecast,
+    conversionLog: {
+      organization_id: input.budget.organizationId,
+      budget_id: input.budget.id,
+      converted_by: userId,
+      status: "success",
+      source_budget_status: input.budget.status,
+      source_budget_final_price: calculation.finalPrice,
+      source_budget_subtotal_cost: calculation.subtotalCost,
+      snapshot_data: snapshotData
+    },
+    auditMetadata: {
+      budgetId: input.budget.id,
+      budgetNumber: input.budget.budgetNumber,
+      environments: input.environments,
+      copiedItems,
+      copiedMaterials: materials,
+      copiedLabor: labor,
+      paymentTerms: input.paymentTerms,
+      sinapiSnapshots,
+      initialCostForecast,
+      initialReceivablesForecast,
+      calculation
+    }
   };
 }
 
 export function buildProjectInsertFromBudget(input: {
   budget: ConvertiblePmeBudget;
   userId: string;
-}): {
-  organization_id: string;
-  created_by: string;
-  name: string;
-  code: string;
-  description: string;
-  status: "planning";
-} {
+  optionalProjectName?: string | undefined;
+  optionalStartDate?: string | undefined;
+}): PmeProjectInsert {
+  const fallbackName = `Obra - ${input.budget.clientName}`;
+  const name = input.optionalProjectName?.trim() || input.budget.title.trim() || fallbackName;
+
   return {
     organization_id: input.budget.organizationId,
     created_by: input.userId,
-    name: input.budget.title,
+    name,
     code: `PME-${input.budget.budgetNumber}`,
     description: `Projeto criado a partir do orçamento PME ${input.budget.budgetNumber}.`,
-    status: "planning"
+    status: "planning",
+    starts_on: normalizeOptionalDate(input.optionalStartDate),
+    source_module: "pme_budget",
+    source_id: input.budget.id,
+    work_address: input.budget.workAddress
+  };
+}
+
+export function attachProjectIdToConversionPlan(
+  plan: PmeBudgetConversionPlan,
+  projectId: string
+): PmeBudgetConversionPlan {
+  return {
+    ...plan,
+    budgetSnapshot: {
+      ...plan.budgetSnapshot,
+      project_id: projectId
+    },
+    initialCostForecast: plan.initialCostForecast.map((forecast) => ({
+      ...forecast,
+      project_id: projectId
+    })),
+    initialReceivablesForecast: plan.initialReceivablesForecast.map((forecast) => ({
+      ...forecast,
+      project_id: projectId
+    })),
+    conversionLog: {
+      ...plan.conversionLog,
+      project_id: projectId
+    },
+    auditMetadata: {
+      ...plan.auditMetadata,
+      projectId
+    }
   };
 }
 
@@ -166,50 +392,204 @@ function toCalculationItem(item: ConvertiblePmeItem): PmeBudgetCalculationItemIn
   return {
     id: item.id,
     description: item.description,
-    kind: toCalculationKind(item.itemType),
+    kind: toCalculationKind(item),
     quantity: item.quantity,
     unitCost: item.unitCost,
     unitPrice: item.unitPrice
   };
 }
 
-function toCalculationKind(
-  itemType: ConvertiblePmeItem["itemType"]
-): PmeBudgetCalculationItemInput["kind"] {
-  if (itemType === "material") {
+function toMaterialCalculationItem(
+  material: ConvertiblePmeMaterial
+): PmeBudgetCalculationItemInput {
+  return {
+    id: material.id,
+    description: material.description,
+    kind: "material",
+    quantity: material.quantity,
+    unitCost: material.unitCost,
+    unitPrice: material.unitCost
+  };
+}
+
+function toLaborCalculationItem(labor: ConvertiblePmeLabor): PmeBudgetCalculationItemInput {
+  return {
+    id: labor.id,
+    description: labor.roleName ?? labor.laborType,
+    kind: "mao_de_obra",
+    quantity: labor.quantity,
+    unitCost: labor.unitCost,
+    unitPrice: labor.unitCost
+  };
+}
+
+function toCalculationKind(item: ConvertiblePmeItem): PmeBudgetCalculationItemInput["kind"] {
+  if (item.category === "material" || item.itemType === "material") {
     return "material";
   }
 
-  if (itemType === "labor") {
-    return "labor";
+  if (item.category === "mao_de_obra" || item.itemType === "labor") {
+    return "mao_de_obra";
   }
 
-  return "service";
+  if (item.category === "terceiro") {
+    return "terceiro";
+  }
+
+  if (item.category === "equipamento" || item.itemType === "equipment") {
+    return "equipamento";
+  }
+
+  if (item.category === "transporte") {
+    return "transporte";
+  }
+
+  if (item.category === "descarte") {
+    return "descarte";
+  }
+
+  if (item.category === "taxa") {
+    return "taxa";
+  }
+
+  if (item.category === "outro" || item.itemType === "other") {
+    return "outro";
+  }
+
+  return "servico";
 }
 
-function toCostForecast(item: ConvertiblePmeItem): PmeProjectCostForecast {
+function toItemCostForecast(
+  item: ConvertiblePmeItem,
+  organizationId: string,
+  budgetId: string
+): PmeProjectCostForecast {
   return {
-    sourceBudgetItemId: item.id,
+    organization_id: organizationId,
+    source_pme_budget_id: budgetId,
+    source_budget_item_id: item.id,
+    source_type: item.sourceType === "sinapi" ? "sinapi_snapshot" : "item",
     description: item.description,
-    unit: item.unit,
+    category: item.category,
     quantity: item.quantity,
-    plannedCost: item.subtotalCost,
-    plannedSalePrice: item.finalPrice,
-    environmentId: item.environmentId
+    unit: item.unit,
+    unit_cost: item.unitCost,
+    total_cost: item.totalCost,
+    expected_date: null,
+    status: "planned"
   };
 }
 
-function toReceivableForecast(
-  term: ConvertiblePmePaymentTerm,
-  finalPrice: string
-): PmeProjectReceivableForecast {
+function toMaterialCostForecast(
+  material: ConvertiblePmeMaterial,
+  organizationId: string,
+  budgetId: string
+): PmeProjectCostForecast {
   return {
-    sourcePaymentTermId: term.id,
-    description: term.description,
-    dueOffsetDays: term.dueOffsetDays,
-    plannedAmount: term.amount ?? calculatePercentageAmount(finalPrice, term.percentage ?? "0"),
-    percentage: term.percentage
+    organization_id: organizationId,
+    source_pme_budget_id: budgetId,
+    source_budget_item_id: material.budgetItemId,
+    source_type: "material",
+    description: material.description,
+    category: "material",
+    quantity: material.quantity,
+    unit: material.unit,
+    unit_cost: material.unitCost,
+    total_cost: material.totalCost,
+    expected_date: null,
+    status: "planned"
   };
+}
+
+function toLaborCostForecast(
+  labor: ConvertiblePmeLabor,
+  organizationId: string,
+  budgetId: string
+): PmeProjectCostForecast {
+  return {
+    organization_id: organizationId,
+    source_pme_budget_id: budgetId,
+    source_budget_item_id: labor.budgetItemId,
+    source_type: "labor",
+    description: labor.roleName ?? labor.laborType,
+    category: "mao_de_obra",
+    quantity: labor.quantity,
+    unit: labor.unit,
+    unit_cost: labor.unitCost,
+    total_cost: labor.totalCost,
+    expected_date: null,
+    status: "planned"
+  };
+}
+
+function buildReceivablesForecast(input: {
+  organizationId: string;
+  budgetId: string;
+  paymentTerms: ConvertiblePmePaymentTerm[];
+  finalPrice: string;
+}): PmeProjectReceivableForecast[] {
+  if (input.paymentTerms.length === 0) {
+    return [
+      {
+        organization_id: input.organizationId,
+        source_pme_budget_id: input.budgetId,
+        source_payment_term_id: null,
+        installment_number: 1,
+        description: "Recebimento do orçamento aprovado",
+        percentage: "100",
+        amount: input.finalPrice,
+        due_condition: "na aprovacao",
+        due_date: null,
+        status: "planned"
+      }
+    ];
+  }
+
+  return input.paymentTerms.map((term) => ({
+    organization_id: input.organizationId,
+    source_pme_budget_id: input.budgetId,
+    source_payment_term_id: term.id,
+    installment_number: term.installmentNumber,
+    description: term.description,
+    percentage: term.percentage,
+    amount: term.amount ?? calculatePercentageAmount(input.finalPrice, term.percentage ?? "0"),
+    due_condition: term.dueCondition ?? `D+${term.dueOffsetDays}`,
+    due_date: term.dueDate,
+    status: "planned"
+  }));
+}
+
+function buildSnapshotData(input: {
+  budget: ConvertiblePmeBudget;
+  environments: ConvertiblePmeEnvironment[];
+  items: ConvertiblePmeItem[];
+  materials: ConvertiblePmeMaterial[];
+  labor: ConvertiblePmeLabor[];
+  paymentTerms: ConvertiblePmePaymentTerm[];
+  sinapiSnapshots: ConvertiblePmeSinapiSnapshot[];
+  calculation: PmeBudgetCalculationResult;
+  optionalNotes?: string | undefined;
+}): Record<string, unknown> {
+  return {
+    convertedAtSource: new Date().toISOString(),
+    optionalNotes: input.optionalNotes ?? null,
+    budget: input.budget,
+    environments: input.environments,
+    items: input.items,
+    materials: input.materials,
+    labor: input.labor,
+    paymentTerms: input.paymentTerms,
+    sinapiSnapshots: input.sinapiSnapshots,
+    calculation: input.calculation
+  };
+}
+
+function normalizeOptionalDate(value: string | undefined): string | undefined {
+  if (typeof value === "undefined" || value.trim().length === 0) {
+    return undefined;
+  }
+
+  return value;
 }
 
 function calculatePercentageAmount(amount: string, percentage: string): string {

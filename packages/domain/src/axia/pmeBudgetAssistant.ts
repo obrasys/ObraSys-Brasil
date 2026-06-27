@@ -1,23 +1,39 @@
-export type AxiaPmeTask =
+export type AxiaPmeActionType =
+  | "create_budget_draft"
   | "suggest_missing_items"
-  | "draft_from_text"
-  | "draft_from_renovation_description"
-  | "suggest_environments_services"
-  | "low_margin_alert"
-  | "compare_sinapi_reference"
-  | "commercial_proposal_text"
-  | "execution_checklist";
+  | "review_budget_margin"
+  | "compare_with_sinapi"
+  | "generate_proposal_text"
+  | "generate_execution_checklist"
+  | "explain_budget_to_client";
 
-export type AxiaInsightType =
+export type AxiaPmeTask = AxiaPmeActionType;
+
+export type AxiaSuggestionType =
+  | "budget_draft"
   | "missing_item"
-  | "draft_budget"
-  | "environment_service"
   | "margin_alert"
   | "sinapi_comparison"
-  | "commercial_text"
-  | "execution_checklist";
+  | "proposal_text"
+  | "execution_checklist"
+  | "client_explanation"
+  | "risk_alert";
 
-export type AxiaSuggestionStatus = "draft" | "suggested";
+export type AxiaInsightType = AxiaSuggestionType;
+
+export type AxiaSuggestionSeverity = "low" | "medium" | "high" | "critical";
+export type AxiaSuggestionStatus = "suggested" | "accepted" | "rejected" | "applied" | "archived";
+export type AxiaDraftStatus = "draft" | "suggested" | "pending_approval";
+
+export type AxiaSuggestedAction =
+  | "create_environment"
+  | "create_budget_item"
+  | "create_material"
+  | "create_labor"
+  | "update_margin_warning"
+  | "create_proposal_text"
+  | "create_checklist_item"
+  | "add_note";
 
 export type AxiaJson =
   | string
@@ -32,11 +48,18 @@ export interface AxiaSanitizationResult {
   removedFields: string[];
 }
 
+export interface AxiaContextSanitizationResult {
+  sanitizedContext: AxiaPmeBudgetContext;
+  removedFields: string[];
+  redactionSummary: Record<string, number>;
+}
+
 export interface AxiaPmeBudgetContext {
   budgetId?: string;
   title?: string;
   description?: string;
   budgetNumber?: string;
+  budgetType?: string;
   status?: string;
   environments?: Array<{
     name: string;
@@ -44,9 +67,11 @@ export interface AxiaPmeBudgetContext {
   }>;
   items?: Array<{
     description: string;
+    category?: string;
     itemType?: string;
     unit?: string;
     quantity?: string;
+    unitPrice?: string;
     showOnProposal?: boolean;
   }>;
   totals?: {
@@ -54,7 +79,14 @@ export interface AxiaPmeBudgetContext {
     finalPrice?: string;
     profitPercentage?: string;
     taxPercentage?: string;
+    discountAmount?: string;
   };
+  paymentTerms?: Array<{
+    description: string;
+    percentage?: string | null;
+    amount?: string | null;
+    dueCondition?: string | null;
+  }>;
   sinapiReferences?: Array<{
     code: string;
     description: string;
@@ -67,26 +99,40 @@ export interface AxiaPmeBudgetContext {
 }
 
 export interface AxiaPmeAssistantInput {
-  task: AxiaPmeTask;
-  userText: string;
+  actionType: AxiaPmeActionType;
+  userMessage: string;
   context: AxiaPmeBudgetContext;
 }
 
+export interface AxiaPmeSuggestionItem {
+  suggestedAction: AxiaSuggestedAction;
+  payload: AxiaJson;
+}
+
+export interface AxiaPmeSuggestion {
+  type: AxiaSuggestionType;
+  title: string;
+  description: string;
+  severity: AxiaSuggestionSeverity;
+  confidenceScore: number;
+  status: AxiaDraftStatus;
+  items: AxiaPmeSuggestionItem[];
+}
+
+export interface AxiaPmeAssistantResponse {
+  summary: string;
+  suggestions: AxiaPmeSuggestion[];
+  warnings: string[];
+  humanValidationRequired: true;
+}
+
 export interface AxiaPmeInsight {
-  type: AxiaInsightType;
-  status: AxiaSuggestionStatus;
+  type: AxiaSuggestionType;
+  status: "suggested";
   title: string;
   summary: string;
   evidence: string[];
   suggestedPayload: AxiaJson;
-}
-
-export interface AxiaPmeAssistantResponse {
-  task: AxiaPmeTask;
-  status: AxiaSuggestionStatus;
-  message: string;
-  insights: AxiaPmeInsight[];
-  guardrails: string[];
 }
 
 const sensitivePatterns: Array<{ label: string; pattern: RegExp; replacement: string }> = [
@@ -135,214 +181,307 @@ export function sanitizeAxiaText(input: string): AxiaSanitizationResult {
   };
 }
 
-export function sanitizeAxiaContext(context: AxiaPmeBudgetContext): {
-  sanitizedContext: AxiaPmeBudgetContext;
-  removedFields: string[];
-} {
+export function sanitizeAxiaContext(context: AxiaPmeBudgetContext): AxiaContextSanitizationResult {
   const removedFields: string[] = [];
   const sanitizedContext: AxiaPmeBudgetContext = {
     ...(typeof context.budgetId === "undefined" ? {} : { budgetId: context.budgetId }),
+    ...(typeof context.budgetNumber === "undefined" ? {} : { budgetNumber: context.budgetNumber }),
+    ...(typeof context.budgetType === "undefined" ? {} : { budgetType: context.budgetType }),
+    ...(typeof context.status === "undefined" ? {} : { status: context.status }),
     ...(typeof context.title === "undefined"
       ? {}
-      : { title: sanitizeAxiaText(context.title).sanitizedText }),
+      : { title: sanitizeValue(context.title, removedFields) }),
     ...(typeof context.description === "undefined"
       ? {}
-      : { description: sanitizeAxiaText(context.description).sanitizedText }),
-    ...(typeof context.budgetNumber === "undefined" ? {} : { budgetNumber: context.budgetNumber }),
-    ...(typeof context.status === "undefined" ? {} : { status: context.status }),
+      : { description: sanitizeValue(context.description, removedFields) }),
     ...(typeof context.environments === "undefined"
       ? {}
       : {
           environments: context.environments.map((environment) => ({
-            name: sanitizeAxiaText(environment.name).sanitizedText,
+            name: sanitizeValue(environment.name, removedFields),
             ...(typeof environment.description === "undefined"
               ? {}
               : {
                   description:
                     typeof environment.description === "string"
-                      ? sanitizeAxiaText(environment.description).sanitizedText
+                      ? sanitizeValue(environment.description, removedFields)
                       : environment.description
                 })
           }))
         }),
     ...(typeof context.items === "undefined" ? {} : { items: context.items }),
     ...(typeof context.totals === "undefined" ? {} : { totals: context.totals }),
+    ...(typeof context.paymentTerms === "undefined" ? {} : { paymentTerms: context.paymentTerms }),
     ...(typeof context.sinapiReferences === "undefined"
       ? {}
       : { sinapiReferences: context.sinapiReferences })
   };
 
-  for (const value of [context.title, context.description]) {
-    if (typeof value === "string") {
-      removedFields.push(...sanitizeAxiaText(value).removedFields);
-    }
-  }
-
-  for (const environment of context.environments ?? []) {
-    removedFields.push(...sanitizeAxiaText(environment.name).removedFields);
-    if (typeof environment.description === "string") {
-      removedFields.push(...sanitizeAxiaText(environment.description).removedFields);
-    }
-  }
-
   return {
     sanitizedContext,
-    removedFields: unique(removedFields)
+    removedFields: unique(removedFields),
+    redactionSummary: countFields(removedFields)
   };
 }
 
 export function buildAxiaPmeAssistantResponse(
   input: AxiaPmeAssistantInput
 ): AxiaPmeAssistantResponse {
-  const sanitized = sanitizeAxiaText(input.userText);
-  const baseEvidence = [
-    "Resposta consultiva: nenhuma alteração oficial foi executada.",
-    "Sugestões marcadas como draft ou suggested para validação humana."
-  ];
+  const sanitizedMessage = sanitizeAxiaText(input.userMessage).sanitizedText;
 
-  if (input.task === "low_margin_alert") {
-    const profit = input.context.totals?.profitPercentage ?? "0";
-    const isLow = Number(profit) > 0 && Number(profit) < 15;
-    return response(input.task, [
+  if (input.actionType === "create_budget_draft") {
+    return buildResponse("Rascunho criado para validação humana.", [
       {
-        type: "margin_alert",
-        status: "suggested",
-        title: isLow ? "Margem abaixo do recomendável" : "Margem sem alerta crítico",
-        summary: isLow
-          ? "A margem informada parece baixa para uma reforma PME. Revise risco, retrabalho e impostos antes de enviar."
-          : "Não identifiquei margem baixa com os dados resumidos disponíveis.",
-        evidence: [...baseEvidence, `Margem informada: ${profit}%`],
-        suggestedPayload: { profitPercentage: profit, severity: isLow ? "medium" : "info" }
-      }
-    ]);
-  }
-
-  if (input.task === "commercial_proposal_text") {
-    return response(input.task, [
-      {
-        type: "commercial_text",
+        type: "budget_draft",
+        title: "Rascunho inicial de orçamento",
+        description:
+          "Sugeri ambientes e serviços comuns para uma reforma PME. Revise quantidades e preços.",
+        severity: "medium",
+        confidenceScore: 0.74,
         status: "draft",
-        title: "Texto comercial sugerido",
-        summary:
-          "Segue rascunho de texto para proposta, sem expor custo interno, margem ou preço mínimo.",
-        evidence: baseEvidence,
-        suggestedPayload: {
-          text: `Olá! Preparamos uma proposta para ${input.context.title ?? "sua reforma"} com escopo organizado por etapas, materiais e mão de obra. O valor apresentado considera execução planejada, condições combinadas e prazo de validade do orçamento.`
-        }
+        items: [
+          {
+            suggestedAction: "create_environment",
+            payload: {
+              name: inferEnvironmentName(sanitizedMessage),
+              description: "Ambiente sugerido pela Axia"
+            }
+          },
+          ...buildBathroomDraftItems(sanitizedMessage).map((description) => ({
+            suggestedAction: "create_budget_item" as const,
+            payload: {
+              description,
+              category: "servico",
+              unit: description.includes("pintura") ? "m2" : "un",
+              quantity: "1",
+              sourceType: "axia_suggestion",
+              status: "suggested"
+            }
+          }))
+        ]
       }
     ]);
   }
 
-  if (input.task === "execution_checklist") {
-    return response(input.task, [
+  if (input.actionType === "review_budget_margin") {
+    const profit = Number(input.context.totals?.profitPercentage ?? "0");
+    const finalPrice = Number(input.context.totals?.finalPrice ?? "0");
+    const subtotalCost = Number(input.context.totals?.subtotalCost ?? "0");
+    const hasLowMargin = profit > 0 && profit < 15;
+    const priceBelowCost = finalPrice > 0 && subtotalCost > 0 && finalPrice < subtotalCost;
+
+    return buildResponse("Revisei margem e preço de venda como alerta consultivo.", [
+      {
+        type: hasLowMargin || priceBelowCost ? "margin_alert" : "risk_alert",
+        title: hasLowMargin ? "Margem baixa para reforma PME" : "Margem sem alerta crítico",
+        description: priceBelowCost
+          ? "O preço de venda parece menor que o custo interno. Revise antes de enviar ao cliente."
+          : hasLowMargin
+            ? "A margem informada parece baixa para cobrir retrabalho, perdas, impostos e administração."
+            : "Não identifiquei alerta crítico com os dados disponíveis.",
+        severity: priceBelowCost ? "critical" : hasLowMargin ? "high" : "low",
+        confidenceScore: 0.82,
+        status: "suggested",
+        items: [
+          {
+            suggestedAction: "update_margin_warning",
+            payload: {
+              profitPercentage: input.context.totals?.profitPercentage ?? "0",
+              finalPrice: input.context.totals?.finalPrice ?? "0",
+              subtotalCost: input.context.totals?.subtotalCost ?? "0"
+            }
+          }
+        ]
+      }
+    ]);
+  }
+
+  if (input.actionType === "compare_with_sinapi") {
+    const references = input.context.sinapiReferences ?? [];
+    return buildResponse(
+      references.length > 0
+        ? "Comparei os itens com snapshots SINAPI disponíveis no orçamento."
+        : "Não há referência SINAPI disponível no contexto deste orçamento.",
+      [
+        {
+          type: "sinapi_comparison",
+          title: "Comparação SINAPI consultiva",
+          description:
+            references.length > 0
+              ? "Use o SINAPI como referência técnica, não como preço obrigatório. Não consultei preços novos."
+              : "Não inventei código SINAPI porque não há snapshot ou referência disponível.",
+          severity: "low",
+          confidenceScore: references.length > 0 ? 0.78 : 0.95,
+          status: "suggested",
+          items: [{ suggestedAction: "add_note", payload: { references } }]
+        }
+      ]
+    );
+  }
+
+  if (input.actionType === "generate_proposal_text") {
+    return buildResponse("Texto comercial criado sem expor custo interno ou margem.", [
+      {
+        type: "proposal_text",
+        title: "Texto comercial para proposta",
+        description: "Rascunho editável para apresentar escopo e valor ao cliente.",
+        severity: "low",
+        confidenceScore: 0.86,
+        status: "draft",
+        items: [
+          {
+            suggestedAction: "create_proposal_text",
+            payload: {
+              text: `Olá! Preparamos a proposta "${input.context.title ?? "Orçamento PME"}" com escopo organizado, serviços previstos e condições combinadas. O valor apresentado considera a execução planejada e a validade do orçamento.`
+            }
+          }
+        ]
+      }
+    ]);
+  }
+
+  if (input.actionType === "generate_execution_checklist") {
+    return buildResponse("Checklist prático sugerido para organizar a execução.", [
       {
         type: "execution_checklist",
+        title: "Checklist de execução",
+        description: "Etapas sugeridas para preparação, execução, conferência e entrega.",
+        severity: "low",
+        confidenceScore: 0.8,
         status: "suggested",
-        title: "Checklist inicial de execução",
-        summary: "Checklist prático para validar antes de iniciar a obra.",
-        evidence: baseEvidence,
-        suggestedPayload: {
-          items: [
-            "Confirmar escopo aprovado com o cliente",
-            "Validar compra de materiais críticos",
-            "Agendar mão de obra",
-            "Registrar fotos do local antes do início",
-            "Conferir condições de pagamento"
-          ]
-        }
+        items: [
+          "Confirmar escopo aprovado",
+          "Registrar fotos antes do início",
+          "Conferir materiais críticos",
+          "Validar execução por ambiente",
+          "Fazer limpeza final e entrega"
+        ].map((label) => ({
+          suggestedAction: "create_checklist_item" as const,
+          payload: { label }
+        }))
       }
     ]);
   }
 
-  if (input.task === "compare_sinapi_reference") {
-    return response(input.task, [
+  if (input.actionType === "explain_budget_to_client") {
+    return buildResponse("Explicação simples criada sem custo interno, margem ou lucro.", [
       {
-        type: "sinapi_comparison",
-        status: "suggested",
-        title: "Comparação com referência SINAPI",
-        summary:
-          input.context.sinapiReferences && input.context.sinapiReferences.length > 0
-            ? "Há referências SINAPI disponíveis para comparação. Use como referência técnica, não como preço obrigatório."
-            : "Não encontrei referência SINAPI no contexto sanitizado deste orçamento.",
-        evidence: [
-          ...baseEvidence,
-          `Referências SINAPI encontradas: ${input.context.sinapiReferences?.length ?? 0}`
-        ],
-        suggestedPayload: { references: input.context.sinapiReferences ?? [] }
-      }
-    ]);
-  }
-
-  if (input.task === "draft_from_text" || input.task === "draft_from_renovation_description") {
-    return response(input.task, [
-      {
-        type: "draft_budget",
+        type: "client_explanation",
+        title: "Explicação para o cliente",
+        description:
+          "Este orçamento organiza os serviços por etapas para facilitar o acompanhamento da reforma. O valor considera o escopo descrito, materiais/serviços previstos e condições de pagamento informadas.",
+        severity: "low",
+        confidenceScore: 0.84,
         status: "draft",
-        title: "Rascunho inicial de orçamento",
-        summary:
-          "Rascunho criado a partir do texto sanitizado. Revise itens, quantidades e preços.",
-        evidence: [...baseEvidence, "Texto livre foi sanitizado antes de gerar sugestão."],
-        suggestedPayload: {
-          title: extractTitle(sanitized.sanitizedText),
-          environments: ["Ambiente principal"],
-          services: ["Levantamento do local", "Execução dos serviços descritos", "Limpeza final"]
-        }
+        items: [{ suggestedAction: "add_note", payload: { audience: "cliente_final" } }]
       }
     ]);
   }
 
-  if (input.task === "suggest_environments_services") {
-    return response(input.task, [
-      {
-        type: "environment_service",
-        status: "suggested",
-        title: "Ambientes e serviços sugeridos",
-        summary: "Sugestões para organizar o orçamento em uma leitura simples para PME.",
-        evidence: baseEvidence,
-        suggestedPayload: {
-          environments: ["Preparação", "Execução", "Acabamento"],
-          services: ["Proteção do local", "Serviço principal", "Revisão e limpeza"]
-        }
-      }
-    ]);
-  }
-
-  return response(input.task, [
+  return buildResponse("Analisei lacunas comuns em orçamento PME.", [
     {
       type: "missing_item",
-      status: "suggested",
       title: "Itens que podem estar faltando",
-      summary: "Verifique itens comuns que costumam gerar retrabalho em reformas pequenas.",
-      evidence: baseEvidence,
-      suggestedPayload: {
-        items: ["Proteção de piso e móveis", "Remoção e descarte", "Transporte", "Limpeza final"]
-      }
+      description: "Verifique itens comuns que costumam gerar retrabalho em reformas pequenas.",
+      severity: "medium",
+      confidenceScore: 0.72,
+      status: "suggested",
+      items: [
+        "Proteção de piso e móveis",
+        "Remoção de entulho",
+        "Impermeabilização quando houver área molhada",
+        "Teste hidráulico ou elétrico",
+        "Limpeza final"
+      ].map((description) => ({
+        suggestedAction: "create_budget_item" as const,
+        payload: {
+          description,
+          category: "servico",
+          unit: "un",
+          quantity: "1",
+          sourceType: "axia_suggestion",
+          status: "suggested"
+        }
+      }))
     }
   ]);
 }
 
-function response(task: AxiaPmeTask, insights: AxiaPmeInsight[]): AxiaPmeAssistantResponse {
-  return {
-    task,
+export function toLegacyInsights(response: AxiaPmeAssistantResponse): AxiaPmeInsight[] {
+  return response.suggestions.map((suggestion) => ({
+    type: suggestion.type,
     status: "suggested",
-    message: "Sugestões geradas para revisão humana. Nenhum dado oficial foi alterado.",
-    insights,
-    guardrails: [
-      "Axia não aprova orçamento.",
-      "Axia não altera preço final.",
-      "Axia não converte orçamento em obra.",
-      "Sugestões precisam de validação humana."
-    ]
+    title: suggestion.title,
+    summary: suggestion.description,
+    evidence: ["Resposta consultiva: nenhuma alteração oficial foi executada."],
+    suggestedPayload: { items: suggestion.items.map(toSuggestionItemJson) }
+  }));
+}
+
+function toSuggestionItemJson(item: AxiaPmeSuggestionItem): AxiaJson {
+  return {
+    suggestedAction: item.suggestedAction,
+    payload: item.payload
   };
 }
 
-function extractTitle(text: string): string {
-  const trimmed = text.trim();
-  if (trimmed.length === 0) {
-    return "Rascunho de orçamento PME";
+function buildResponse(
+  summary: string,
+  suggestions: AxiaPmeSuggestion[],
+  warnings: string[] = []
+): AxiaPmeAssistantResponse {
+  return {
+    summary,
+    suggestions,
+    warnings: [
+      "A Axia gera sugestões para validação humana.",
+      "A Axia não aprova orçamento.",
+      "A Axia não altera automaticamente dados oficiais.",
+      "Nenhum orçamento foi aprovado, convertido ou alterado automaticamente.",
+      ...warnings
+    ],
+    humanValidationRequired: true
+  };
+}
+
+function inferEnvironmentName(text: string): string {
+  return text.toLocaleLowerCase("pt-BR").includes("banheiro") ? "Banheiro" : "Ambiente principal";
+}
+
+function buildBathroomDraftItems(text: string): string[] {
+  if (!text.toLocaleLowerCase("pt-BR").includes("banheiro")) {
+    return ["Levantamento do local", "Execução dos serviços descritos", "Limpeza final"];
   }
 
-  return trimmed.slice(0, 80);
+  return [
+    "Proteção do local",
+    "Demolição e remoção de revestimentos",
+    "Remoção de entulho",
+    "Revisão hidráulica",
+    "Revisão elétrica",
+    "Impermeabilização",
+    "Contrapiso",
+    "Assentamento de piso",
+    "Assentamento de revestimento",
+    "Rejuntamento",
+    "Instalação de louças e metais",
+    "Instalação de box",
+    "Pintura",
+    "Limpeza final"
+  ];
+}
+
+function sanitizeValue(value: string, removedFields: string[]): string {
+  const result = sanitizeAxiaText(value);
+  removedFields.push(...result.removedFields);
+  return result.sanitizedText;
+}
+
+function countFields(fields: string[]): Record<string, number> {
+  return fields.reduce<Record<string, number>>((summary, field) => {
+    summary[field] = (summary[field] ?? 0) + 1;
+    return summary;
+  }, {});
 }
 
 function unique(values: string[]): string[] {

@@ -124,6 +124,36 @@ file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
 
+[storage.buckets.project-photos]
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
+[storage.buckets.project-attachments]
+public = false
+file_size_limit = "50MiB"
+allowed_mime_types = ["application/pdf", "image/png", "image/jpeg", "image/webp"]
+
+[storage.buckets.budget-proposals]
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = ["application/pdf", "text/html"]
+
+[storage.buckets.project-reports]
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = ["application/pdf", "text/html", "application/json"]
+
+[storage.buckets.purchase-attachments]
+public = false
+file_size_limit = "50MiB"
+allowed_mime_types = ["application/pdf", "image/png", "image/jpeg", "image/webp"]
+
+[storage.buckets.daily-log-photos]
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
@@ -384,6 +414,33 @@ deno_version = 2
 
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
+
+[functions.pme-budget-convert-to-project]
+verify_jwt = true
+
+[functions.pme-budget-generate-proposal]
+verify_jwt = true
+
+[functions.pme-project-create-actual-cost]
+verify_jwt = true
+
+[functions.pme-project-create-receipt]
+verify_jwt = true
+
+[functions.pme-project-lock-daily-log]
+verify_jwt = true
+
+[functions.pme-project-generate-report]
+verify_jwt = true
+
+[functions.pme-project-close]
+verify_jwt = true
+
+[functions.pme-notifications-generate]
+verify_jwt = true
+
+[functions.axia-pme-budget-assistant]
+verify_jwt = true
 
 [analytics]
 enabled = true

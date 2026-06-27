@@ -1,0 +1,826 @@
+{
+  "runId": "20260627182240",
+  "projectRefConfirmed": true,
+  "url": "https://ndfivxfmijjwakeeunhd.supabase.co",
+  "users": [
+    {
+      "email": "admin-org-a-20260627182240@staging.obrasys.local",
+      "id": "29feb61b-2a26-49ba-b3d5-4de1e2aab34a",
+      "organizationId": "10000000-0000-0000-0000-000000000001",
+      "role": "admin"
+    },
+    {
+      "email": "engenheiro-obra-a-20260627182240@staging.obrasys.local",
+      "id": "1615b8a7-2b0d-4dd0-86d4-25d92d569b8a",
+      "organizationId": "10000000-0000-0000-0000-000000000001",
+      "role": "manager"
+    },
+    {
+      "email": "mestre-obra-a-20260627182240@staging.obrasys.local",
+      "id": "e2cc8996-1f2d-4671-8782-cb99f8dbc46c",
+      "organizationId": "10000000-0000-0000-0000-000000000001",
+      "role": "member"
+    },
+    {
+      "email": "sem-financeiro-a-20260627182240@staging.obrasys.local",
+      "id": "a23f10d9-79aa-4871-b81c-935275043ba2",
+      "organizationId": "10000000-0000-0000-0000-000000000001",
+      "role": "member"
+    },
+    {
+      "email": "admin-org-b-20260627182240@staging.obrasys.local",
+      "id": "f5c2f6b4-0105-4236-9c23-af2eda848840",
+      "organizationId": "10000000-0000-0000-0000-000000000002",
+      "role": "admin"
+    },
+    {
+      "email": "engenheiro-obra-b-20260627182240@staging.obrasys.local",
+      "id": "5e501f80-c936-47c6-a220-a576f9c840e7",
+      "organizationId": "10000000-0000-0000-0000-000000000002",
+      "role": "manager"
+    }
+  ],
+  "organizations": [
+    "10000000-0000-0000-0000-000000000001",
+    "10000000-0000-0000-0000-000000000002"
+  ],
+  "tables": [
+    {
+      "table": "pme_budgets",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budgets",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budgets",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_budgets\\\"\"}"
+    },
+    {
+      "table": "pme_budgets",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budget_items",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budget_items",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budget_items",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_budget_items\\\"\"}"
+    },
+    {
+      "table": "pme_budget_items",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_budget_exports",
+      "status": "skipped",
+      "reason": "table missing or no sample"
+    },
+    {
+      "table": "projects",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "projects",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "projects",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"projects\\\"\"}"
+    },
+    {
+      "table": "projects",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_tasks",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_tasks",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_tasks",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_tasks\\\"\"}"
+    },
+    {
+      "table": "pme_project_tasks",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_actual_costs",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_actual_costs",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_actual_costs",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_actual_costs\\\"\"}"
+    },
+    {
+      "table": "pme_project_actual_costs",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_receipts",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_receipts",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_receipts",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_receipts\\\"\"}"
+    },
+    {
+      "table": "pme_project_receipts",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_daily_logs",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_daily_logs",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_daily_logs",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_daily_logs\\\"\"}"
+    },
+    {
+      "table": "pme_project_daily_logs",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_photos",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_photos",
+      "operation": "update",
+      "passed": false,
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'pme_project_photos' in the schema cache\"}"
+    },
+    {
+      "table": "pme_project_photos",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_photos\\\"\"}"
+    },
+    {
+      "table": "pme_project_photos",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_attachments",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_attachments",
+      "operation": "update",
+      "passed": false,
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'pme_project_attachments' in the schema cache\"}"
+    },
+    {
+      "table": "pme_project_attachments",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_attachments\\\"\"}"
+    },
+    {
+      "table": "pme_project_attachments",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_suppliers",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_suppliers",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_suppliers",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_suppliers\\\"\"}"
+    },
+    {
+      "table": "pme_suppliers",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_purchase_orders",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_purchase_orders",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_purchase_orders",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_purchase_orders\\\"\"}"
+    },
+    {
+      "table": "pme_purchase_orders",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_reports",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_reports",
+      "operation": "update",
+      "passed": false,
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'pme_project_reports' in the schema cache\"}"
+    },
+    {
+      "table": "pme_project_reports",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_reports\\\"\"}"
+    },
+    {
+      "table": "pme_project_reports",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_report_exports",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_project_report_exports",
+      "operation": "update",
+      "passed": false,
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'pme_project_report_exports' in the schema cache\"}"
+    },
+    {
+      "table": "pme_project_report_exports",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_project_report_exports\\\"\"}"
+    },
+    {
+      "table": "pme_project_report_exports",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_notifications",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_notifications",
+      "operation": "update",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "pme_notifications",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"pme_notifications\\\"\"}"
+    },
+    {
+      "table": "pme_notifications",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_runs",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_runs",
+      "operation": "update",
+      "passed": false,
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'axia_runs' in the schema cache\"}"
+    },
+    {
+      "table": "axia_runs",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"axia_runs\\\"\"}"
+    },
+    {
+      "table": "axia_runs",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_context_snapshots",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "axia_context_snapshots",
+      "operation": "update",
+      "passed": false,
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'axia_context_snapshots' in the schema cache\"}"
+    },
+    {
+      "table": "axia_context_snapshots",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"axia_context_snapshots\\\"\"}"
+    },
+    {
+      "table": "axia_context_snapshots",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "audit_logs",
+      "operation": "select",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    },
+    {
+      "table": "audit_logs",
+      "operation": "update",
+      "passed": false,
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'audit_logs' in the schema cache\"}"
+    },
+    {
+      "table": "audit_logs",
+      "operation": "insert",
+      "passed": true,
+      "status": 403,
+      "body": "{\"code\":\"42501\",\"details\":null,\"hint\":null,\"message\":\"new row violates row-level security policy for table \\\"audit_logs\\\"\"}"
+    },
+    {
+      "table": "audit_logs",
+      "operation": "delete",
+      "passed": true,
+      "status": 200,
+      "body": "[]"
+    }
+  ],
+  "edgeFunctions": [
+    {
+      "name": "pme-budget-convert-to-project",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 403,
+      "body": "{\"error\":\"Budget was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-budget-generate-proposal",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Budget was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-create-actual-cost",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Project was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-create-receipt",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Project was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-lock-daily-log",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Daily log was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-generate-report",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Project was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-project-close",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"error\":\"Closeout was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-notifications-generate",
+      "requiresJwt": true,
+      "blocksCrossTenant": false,
+      "status": 200,
+      "body": "{\"generated\":true}",
+      "passed": false
+    },
+    {
+      "name": "axia-pme-budget-assistant",
+      "requiresJwt": true,
+      "blocksCrossTenant": true,
+      "status": 403,
+      "body": "{\"error\":\"Budget was not found or is not accessible.\"}",
+      "passed": true
+    },
+    {
+      "name": "pme-daily-log-process-voice",
+      "requiresJwt": false,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"code\":\"NOT_FOUND\",\"message\":\"Requested function was not found\"}",
+      "passed": false
+    },
+    {
+      "name": "pme-daily-log-fetch-weather",
+      "requiresJwt": false,
+      "blocksCrossTenant": true,
+      "status": 404,
+      "body": "{\"code\":\"NOT_FOUND\",\"message\":\"Requested function was not found\"}",
+      "passed": false
+    }
+  ],
+  "storage": [
+    {
+      "bucket": "project-photos",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/project-photos/20260627182240-project-photos.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 400,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": false
+    },
+    {
+      "bucket": "project-attachments",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/project-attachments/20260627182240-project-attachments.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 400,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": false
+    },
+    {
+      "bucket": "budget-proposals",
+      "path": "10000000-0000-0000-0000-000000000001/budgets/20000000-0000-0000-0000-000000000001/proposals/20260627182240-budget-proposals.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 400,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": false
+    },
+    {
+      "bucket": "project-reports",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/reports/report-20260627182240/exports/20260627182240-project-reports.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 400,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": false
+    },
+    {
+      "bucket": "purchase-attachments",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/purchases/purchase-20260627182240/attachments/20260627182240-purchase-attachments.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 400,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": false
+    },
+    {
+      "bucket": "daily-log-photos",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/daily_logs/60000000-0000-0000-0000-000000000001/photos/20260627182240-daily-log-photos.txt",
+      "privateBucket": true,
+      "uploadStatus": 200,
+      "signedAStatus": 200,
+      "signedOpenStatus": 400,
+      "expiredOpenStatus": 400,
+      "signedBStatus": 400,
+      "directBStatus": 400,
+      "passed": false
+    }
+  ],
+  "financialPermissions": [
+    {
+      "label": "orçamento",
+      "status": 200,
+      "passed": true,
+      "body": "[]"
+    },
+    {
+      "label": "obra custos",
+      "status": 200,
+      "passed": true,
+      "body": "[]"
+    },
+    {
+      "label": "relatórios",
+      "status": 200,
+      "passed": false,
+      "body": "[{\"id\":\"70000000-0000-0000-0000-000000000001\",\"organization_id\":\"10000000-0000-0000-0000-000000000001\",\"project_id\":\"30000000-0000-0000-0000-000000000001\",\"report_type\":\"client_delivery\",\"title\":\"Relatorio demo para cliente\",\"description\":\"Relatorio sanitizado para validar staging.\",\"visibility\":\"client\",\"data_snapshot\":{\"status\":\"demo\",\"project\":\"Obra Demo PME\",\"hiddenFields\":[\"actual_cost\",\"profit\",\"margin\"]},\"generated_by\":\"00000000-0000-0000-0000-000000000101\",\"generated_at\":\"2026-06-27T16:2..."
+    },
+    {
+      "label": "notificações",
+      "status": 200,
+      "passed": true,
+      "body": "[]"
+    }
+  ],
+  "failures": [
+    {
+      "area": "cross-tenant",
+      "table": "pme_project_photos",
+      "operation": "update",
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'pme_project_photos' in the schema cache\"}"
+    },
+    {
+      "area": "cross-tenant",
+      "table": "pme_project_attachments",
+      "operation": "update",
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'pme_project_attachments' in the schema cache\"}"
+    },
+    {
+      "area": "cross-tenant",
+      "table": "pme_project_reports",
+      "operation": "update",
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'pme_project_reports' in the schema cache\"}"
+    },
+    {
+      "area": "cross-tenant",
+      "table": "pme_project_report_exports",
+      "operation": "update",
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'pme_project_report_exports' in the schema cache\"}"
+    },
+    {
+      "area": "cross-tenant",
+      "table": "axia_runs",
+      "operation": "update",
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'axia_runs' in the schema cache\"}"
+    },
+    {
+      "area": "cross-tenant",
+      "table": "axia_context_snapshots",
+      "operation": "update",
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'axia_context_snapshots' in the schema cache\"}"
+    },
+    {
+      "area": "cross-tenant",
+      "table": "audit_logs",
+      "operation": "update",
+      "status": 400,
+      "body": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'updated_at' column of 'audit_logs' in the schema cache\"}"
+    },
+    {
+      "area": "edge-function",
+      "name": "pme-notifications-generate",
+      "status": 200,
+      "body": "{\"generated\":true}"
+    },
+    {
+      "area": "edge-function",
+      "name": "pme-daily-log-process-voice",
+      "status": 404,
+      "body": "{\"code\":\"NOT_FOUND\",\"message\":\"Requested function was not found\"}"
+    },
+    {
+      "area": "edge-function",
+      "name": "pme-daily-log-fetch-weather",
+      "status": 404,
+      "body": "{\"code\":\"NOT_FOUND\",\"message\":\"Requested function was not found\"}"
+    },
+    {
+      "area": "financial-permission",
+      "label": "relatórios",
+      "status": 200,
+      "body": "[{\"id\":\"70000000-0000-0000-0000-000000000001\",\"organization_id\":\"10000000-0000-0000-0000-000000000001\",\"project_id\":\"30000000-0000-0000-0000-000000000001\",\"report_type\":\"client_delivery\",\"title\":\"Relatorio demo para cliente\",\"description\":\"Relatorio sanitizado para validar staging.\",\"visibility\":\"client\",\"data_snapshot\":{\"status\":\"demo\",\"project\":\"Obra Demo PME\",\"hiddenFields\":[\"actual_cost\",\"profit\",\"margin\"]},\"generated_by\":\"00000000-0000-0000-0000-000000000101\",\"generated_at\":\"2026-06-27T16:2..."
+    },
+    {
+      "area": "storage",
+      "bucket": "project-photos",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/project-photos/20260627182240-project-photos.txt"
+    },
+    {
+      "area": "storage",
+      "bucket": "project-attachments",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/project-attachments/20260627182240-project-attachments.txt"
+    },
+    {
+      "area": "storage",
+      "bucket": "budget-proposals",
+      "path": "10000000-0000-0000-0000-000000000001/budgets/20000000-0000-0000-0000-000000000001/proposals/20260627182240-budget-proposals.txt"
+    },
+    {
+      "area": "storage",
+      "bucket": "project-reports",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/reports/report-20260627182240/exports/20260627182240-project-reports.txt"
+    },
+    {
+      "area": "storage",
+      "bucket": "purchase-attachments",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/purchases/purchase-20260627182240/attachments/20260627182240-purchase-attachments.txt"
+    },
+    {
+      "area": "storage",
+      "bucket": "daily-log-photos",
+      "path": "10000000-0000-0000-0000-000000000001/projects/30000000-0000-0000-0000-000000000001/daily_logs/60000000-0000-0000-0000-000000000001/photos/20260627182240-daily-log-photos.txt"
+    }
+  ],
+  "warnings": []
+}

@@ -3,6 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const migrationPath = "supabase/migrations/20260626000100_create_pme_budgets_phase_1.sql";
+const alignmentMigrationPath =
+  "supabase/migrations/20260626000500_align_pme_budgets_phase_1_contract.sql";
 const typesPath = "src/types/database.ts";
 
 const pmeTables = [
@@ -123,6 +125,93 @@ test("PME phase 1 includes versioning and status history", async () => {
   assert.match(sql, /changed_by uuid not null/);
 });
 
+test("PME alignment migration adds approved contract fields", async () => {
+  const sql = await readFile(alignmentMigrationPath, "utf8");
+
+  const requiredSnippets = [
+    "add column if not exists subtotal_price numeric(14, 2)",
+    "add column if not exists cost_center_id uuid",
+    "add column if not exists item_code text",
+    "add column if not exists category text not null default 'servico'",
+    "add column if not exists source_type text not null default 'manual'",
+    "add column if not exists source_reference_id uuid",
+    "add column if not exists waste_percentage numeric(7, 4)",
+    "add column if not exists margin_percentage numeric(7, 4)",
+    "add column if not exists total_cost numeric(14, 2)",
+    "add column if not exists total_price numeric(14, 2)",
+    "add column if not exists budget_item_id uuid",
+    "alter column item_id drop not null",
+    "add column if not exists purchase_status text not null default 'not_purchased'",
+    "add column if not exists labor_type text not null default 'mao_de_obra'",
+    "add column if not exists worker_name text",
+    "add column if not exists days numeric(10, 2)",
+    "add column if not exists contract_type text not null default 'empreitada'",
+    "alter column role_name drop not null",
+    "add column if not exists installment_number integer not null default 1",
+    "add column if not exists due_condition text not null default 'days_after_approval'",
+    "add column if not exists due_date date"
+  ];
+
+  for (const snippet of requiredSnippets) {
+    assert.match(sql, new RegExp(snippet.replace(/[()]/g, "\\$&")));
+  }
+});
+
+test("PME alignment migration includes category, source and purchase constraints", async () => {
+  const sql = await readFile(alignmentMigrationPath, "utf8");
+  const categories = [
+    "material",
+    "mao_de_obra",
+    "servico",
+    "terceiro",
+    "equipamento",
+    "transporte",
+    "descarte",
+    "taxa",
+    "outro"
+  ];
+  const sourceTypes = [
+    "manual",
+    "meu_catalogo",
+    "sinapi",
+    "kit",
+    "axia_suggestion",
+    "supplier_quote"
+  ];
+  const purchaseStatuses = ["not_purchased", "quoted", "purchased", "delivered", "used"];
+
+  for (const value of [...categories, ...sourceTypes, ...purchaseStatuses]) {
+    assert.match(sql, new RegExp(`'${value}'`));
+  }
+
+  assert.match(sql, /foreign key \(organization_id, cost_center_id\)/);
+  assert.match(sql, /foreign key \(organization_id, budget_item_id\)/);
+  assert.doesNotMatch(sql, /\bfloat\b/i);
+  assert.doesNotMatch(sql, /\breal\b/i);
+});
+
+test("PME alignment migration restricts internal table reads to management roles", async () => {
+  const sql = await readFile(alignmentMigrationPath, "utf8");
+
+  assert.match(sql, /drop policy if exists "Members can read PME budgets"/);
+  assert.match(sql, /create policy "Managers can read PME budgets"/);
+  assert.match(sql, /create policy "Managers can read PME items"/);
+  assert.match(sql, /create policy "Managers can read PME materials"/);
+  assert.match(
+    sql,
+    /public\.has_organization_role\(organization_id, array\['owner', 'admin', 'manager'\]\)/
+  );
+  assert.doesNotMatch(sql, /service_role/i);
+});
+
+test("PME alignment migration keeps cross-tenant writes blocked by composite FKs", async () => {
+  const sql = await readFile(alignmentMigrationPath, "utf8");
+
+  assert.match(sql, /pme_budget_items_cost_center_org_fk/);
+  assert.match(sql, /pme_budget_materials_budget_item_org_fk/);
+  assert.match(sql, /pme_budget_labor_budget_item_org_fk/);
+});
+
 test("PME phase 1 TypeScript types cover all approved tables", async () => {
   const types = await readFile(typesPath, "utf8");
 
@@ -131,5 +220,9 @@ test("PME phase 1 TypeScript types cover all approved tables", async () => {
   }
 
   assert.match(types, /export interface Database/);
+  assert.match(types, /export type PmeBudgetItemCategory/);
+  assert.match(types, /source_type: PmeBudgetItemSourceType/);
+  assert.match(types, /purchase_status: PmeBudgetPurchaseStatus/);
+  assert.match(types, /installment_number: number/);
   assert.doesNotMatch(types, /\bany\b/);
 });

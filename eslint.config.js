@@ -42,6 +42,15 @@ export default tseslint.config(
     }
   },
   {
+    files: ["supabase/functions/**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        project: false,
+        projectService: false
+      }
+    }
+  },
+  {
     files: ["**/*.mjs"],
     languageOptions: {
       globals: {

@@ -172,6 +172,7 @@ Fora de escopo nesta fase:
 Migration:
 
 - `supabase/migrations/20260626000100_create_pme_budgets_phase_1.sql`
+- `supabase/migrations/20260626000500_align_pme_budgets_phase_1_contract.sql`
 
 Fase 1 cobre apenas:
 
@@ -193,12 +194,87 @@ Fase 1 cobre apenas:
 - Valores monetários usam `numeric`, nunca `float`, `real` ou `double precision`.
 - Tabelas filhas usam FKs compostas com `organization_id` para impedir vínculo cross-tenant com registros pai.
 - Cálculos financeiros oficiais completos ainda não estão implementados nesta fase, mas campos críticos já ficam persistidos no banco.
+- Tabelas internas de orçamento PME guardam custo, margem e snapshots internos; leitura completa deve ficar restrita a `owner`, `admin` e `manager`.
+- A futura proposta ao cliente deve ser gerada por view/RPC sanitizada, sem custo interno, margem, preço mínimo ou `internal_snapshot`.
 
 ## Tabelas PME
 
 ### pme_budgets
 
 Tabela raiz do orçamento PME.
+
+## Relatorios PME e Fecho Simples da Obra
+
+Migration:
+
+- `supabase/migrations/20260627000400_create_pme_project_reports_closeout.sql`
+
+Tabelas:
+
+- `pme_project_closeouts`
+- `pme_project_closeout_checklist_items`
+- `pme_project_closeout_snapshots`
+- `pme_project_reports`
+- `pme_project_report_exports`
+- `pme_project_report_settings`
+
+Regras principais:
+
+- todas as tabelas têm `organization_id` e RLS ativo;
+- relacionamentos com `projects`, closeouts e relatórios usam FK composta com `organization_id`;
+- valores monetários usam `numeric(14, 2)`;
+- relatórios internos/management podem conter custo interno e lucro somente para perfis autorizados;
+- relatórios `client` devem usar `data_snapshot` sanitizado sem custo interno, margem, lucro,
+  fornecedores internos, notas internas ou audit logs;
+- snapshots de fecho são append-only e preservam o estado consolidado da obra no momento do fecho;
+- exports guardam `html_snapshot` ou `file_url`, sem exigir PDF avançado nesta fase.
+
+## Dashboard PME e Visao Multi-Obras
+
+Migration:
+
+- `supabase/migrations/20260627000500_create_pme_dashboard.sql`
+
+Tabelas:
+
+- `pme_dashboard_snapshots`
+- `pme_dashboard_alerts`
+- `pme_dashboard_user_preferences`
+
+Regras principais:
+
+- todas as tabelas têm `organization_id` e RLS ativo;
+- snapshots guardam agregados financeiros e operacionais por organização;
+- alertas guardam tipo, severidade, status e origem opcional por `source_table/source_id`;
+- índice único parcial evita alerta aberto duplicado para a mesma condição;
+- preferências são por `organization_id` e `user_id`;
+- lucro, margem e custo interno devem ser ocultados no serviço/UI para perfis sem permissão;
+- ações críticas de alertas devem registrar `audit_logs`.
+
+## Notificacoes, Lembretes e Alertas PME
+
+Migration:
+
+- `supabase/migrations/20260627000600_create_pme_notifications.sql`
+
+Tabelas:
+
+- `pme_notifications`
+- `pme_notification_preferences`
+- `pme_notification_rules`
+- `pme_notification_events`
+- `pme_notification_deliveries`
+- `pme_notification_status_history`
+
+Regras principais:
+
+- todas as tabelas têm `organization_id` e RLS ativo;
+- notificações podem ser por usuário ou gerais da organização;
+- `action_url` aceita apenas rotas internas `/app/`;
+- índice único parcial evita notificação ativa duplicada para o mesmo problema;
+- preferências são por usuário, organização e tipo de notificação;
+- deliveries incluem `email` e `push`, mas nesta fase a entrega funcional é apenas `in_app`;
+- eventos e histórico preservam rastreabilidade de leitura, resolução, arquivamento e dispensa.
 
 Campos principais:
 
@@ -260,6 +336,7 @@ Campos principais:
 - `description`
 - `sort_order`
 - `subtotal_cost`
+- `subtotal_price`
 - `final_price`
 
 ### pme_budget_items
@@ -276,7 +353,12 @@ Campos principais:
 
 - `budget_id`
 - `environment_id`
+- `cost_center_id`
+- `item_code`
 - `item_type`
+- `category`
+- `source_type`
+- `source_reference_id`
 - `description`
 - `unit`
 - `quantity`
@@ -284,25 +366,100 @@ Campos principais:
 - `subtotal_cost`
 - `unit_price`
 - `final_price`
+- `waste_percentage`
+- `margin_percentage`
+- `total_cost`
+- `total_price`
 - `is_optional`
 - `show_on_proposal`
 - `sort_order`
+- `notes`
 
-Tipos de item permitidos:
+Categorias permitidas em `category`:
 
-- `service`
 - `material`
-- `labor`
-- `equipment`
-- `other`
+- `mao_de_obra`
+- `servico`
+- `terceiro`
+- `equipamento`
+- `transporte`
+- `descarte`
+- `taxa`
+- `outro`
+
+Origens permitidas em `source_type`:
+
+- `manual`
+- `meu_catalogo`
+- `sinapi`
+- `kit`
+- `axia_suggestion`
+- `supplier_quote`
 
 SINAPI e Axia ficam fora da Fase 1.
+
+### pme_budget_materials
+
+Materiais vinculados ao orçamento e opcionalmente a um item.
+
+Campos principais:
+
+- `budget_id`
+- `budget_item_id`
+- `description`
+- `quantity`
+- `unit`
+- `unit_cost`
+- `waste_percentage`
+- `total_cost`
+- `supplier_name`
+- `purchase_status`
+
+Status de compra permitidos:
+
+- `not_purchased`
+- `quoted`
+- `purchased`
+- `delivered`
+- `used`
+
+### pme_budget_labor
+
+Mão de obra vinculada ao orçamento e opcionalmente a um item.
+
+Campos principais:
+
+- `budget_id`
+- `budget_item_id`
+- `labor_type`
+- `worker_name`
+- `quantity`
+- `unit`
+- `unit_cost`
+- `days`
+- `total_cost`
+- `contract_type`
+
+### pme_budget_payment_terms
+
+Condições de pagamento do orçamento.
+
+Campos principais:
+
+- `budget_id`
+- `installment_number`
+- `description`
+- `percentage`
+- `amount`
+- `due_condition`
+- `due_date`
 
 ## Meu Catálogo PME
 
 Migration:
 
 - `supabase/migrations/20260626000200_create_pme_catalog.sql`
+- `supabase/migrations/20260626000600_align_pme_catalog_contract.sql`
 
 O Meu Catálogo permite que cada organização guarde itens, composições e kits próprios para reutilização em novos orçamentos PME.
 
@@ -313,6 +470,15 @@ Tabelas:
 - `pme_catalog_composition_items`
 - `pme_catalog_kits`
 - `pme_catalog_kit_items`
+- `pme_catalog_status_history`
+
+Regras gerais:
+
+- todas as tabelas têm `organization_id` e RLS ativo;
+- dados de custo, preço sugerido e margem padrão são internos da organização;
+- registros usados em orçamentos antigos devem ser desativados com `is_active = false`, não apagados;
+- `pme_catalog_status_history` registra mudanças de ativo/inativo para itens, composições e kits;
+- itens vindos de SINAPI, fornecedor, Axia ou orçamento são suportados como origem, mas nenhum deles altera orçamento antigo automaticamente.
 
 ### pme_catalog_items
 
@@ -324,10 +490,20 @@ Campos principais:
 - `name`
 - `description`
 - `item_type`
+- `category`
 - `origin`
+- `source_type`
+- `source_reference_id`
+- `sinapi_code`
+- `uf`
+- `reference_month`
+- `reference_year`
 - `unit`
 - `unit_cost`
 - `unit_price`
+- `default_unit_cost`
+- `default_unit_price`
+- `default_margin_percentage`
 - `supplier_name`
 - `source_reference`
 - `metadata`
@@ -345,6 +521,19 @@ Tipos permitidos:
 - `fee`
 - `other`
 
+Categorias oficiais:
+
+- `material`
+- `mao_de_obra`
+- `servico`
+- `terceiro`
+- `equipamento`
+- `transporte`
+- `descarte`
+- `taxa`
+- `composicao`
+- `outro`
+
 Origens permitidas:
 
 - `manual`
@@ -352,11 +541,21 @@ Origens permitidas:
 - `supplier_quote`
 - `axia_suggestion`
 
+Source types oficiais:
+
+- `manual`
+- `sinapi`
+- `supplier_quote`
+- `axia_suggestion`
+- `imported`
+- `budget_item`
+
 Observações:
 
 - `unit_cost` representa custo interno e não deve aparecer em proposta para cliente sem permissão adequada.
 - `unit_price` representa preço de venda sugerido.
-- Itens editados no orçamento poderão ser salvos aqui em fase de aplicação/serviço com Supabase.
+- `default_unit_cost`, `default_unit_price` e `default_margin_percentage` são usados para reutilização em novos orçamentos.
+- Itens editados no orçamento podem ser salvos no catálogo pela Edge Function `pme-catalog-save-budget-item`.
 - `is_active = false` deve ser usado para desativar itens sem apagar histórico.
 
 ### pme_catalog_compositions
@@ -376,6 +575,9 @@ Campos principais:
 - `unit`
 - `total_cost`
 - `total_price`
+- `total_unit_cost`
+- `total_unit_price`
+- `default_margin_percentage`
 - `metadata`
 - `is_active`
 
@@ -392,10 +594,15 @@ Relações:
 Campos principais:
 
 - `composition_id`
-- `catalog_item_id`
+- `catalog_item_id` nullable
+- `description`
+- `category`
 - `quantity`
+- `unit`
 - `unit_cost`
 - `unit_price`
+- `total_cost`
+- `total_price`
 - `sort_order`
 
 ### pme_catalog_kits
@@ -407,20 +614,43 @@ Campos principais:
 - `name`
 - `description`
 - `category`
+- `kit_type`
+- `default_environment`
 - `suggested_tier`
 - `total_cost`
 - `total_price`
+- `total_estimated_cost`
+- `total_estimated_price`
 - `is_seed`
 - `is_active`
+
+Tipos oficiais de kit:
+
+- `reforma_banheiro`
+- `reforma_cozinha`
+- `pintura`
+- `troca_piso`
+- `reforma_apartamento`
+- `eletrica`
+- `hidraulica`
+- `gesso_drywall`
+- `telhado`
+- `area_externa`
+- `manutencao`
+- `personalizado`
 
 Kits iniciais criados para cada organização:
 
 - Reforma de Banheiro Econômico
 - Reforma de Banheiro Médio
 - Reforma de Banheiro Premium
+- Reforma de Cozinha
 - Pintura Apartamento 60m²
 - Troca de Piso
-- Reforma de Cozinha
+- Reforma de Apartamento
+- Elétrica Residencial Básica
+- Hidráulica Residencial Básica
+- Gesso e Drywall Básico
 
 ### pme_catalog_kit_items
 
@@ -437,10 +667,55 @@ Campos principais:
 - `kit_id`
 - `catalog_item_id`
 - `composition_id`
+- `description`
+- `category`
 - `quantity`
+- `unit`
 - `unit_cost`
 - `unit_price`
+- `total_cost`
+- `total_price`
 - `sort_order`
+- `is_optional`
+
+### pme_catalog_status_history
+
+Histórico append-only para mudanças de status do catálogo.
+
+Campos principais:
+
+- `organization_id`
+- `entity_type`
+- `entity_id`
+- `from_status`
+- `to_status`
+- `notes`
+- `changed_by`
+- `changed_at`
+
+Valores permitidos:
+
+- `entity_type`: `item`, `composition`, `kit`
+- status: `active`, `inactive`
+
+### Serviços e Edge Functions do catálogo
+
+Serviços TypeScript em `packages/domain/src/pme/catalog.ts`:
+
+- `createCatalogItem`, `updateCatalogItem`, `deactivateCatalogItem`, `listCatalogItems`, `getCatalogItemById`
+- `createCatalogComposition`, `updateCatalogComposition`, `deactivateCatalogComposition`, `listCatalogCompositions`
+- `createCatalogKit`, `updateCatalogKit`, `deactivateCatalogKit`, `listCatalogKits`
+- `saveBudgetItemToCatalog`
+- `addCatalogItemToBudget`
+- `addCatalogKitToBudget`
+
+Edge Functions:
+
+- `pme-catalog-save-budget-item`
+- `pme-catalog-add-item-to-budget`
+- `pme-catalog-add-kit-to-budget`
+
+As Edge Functions validam usuário autenticado, derivam a organização do orçamento/catálogo no banco, validam papel de `owner`, `admin` ou `manager`, gravam `audit_logs` e não aceitam `organization_id` como fonte de autorização no body.
 
 ## SINAPI Simplificado
 
@@ -452,6 +727,7 @@ O SINAPI entra como referência técnica e de custo opcional para Orçamentos PM
 
 Tabelas públicas de referência:
 
+- `sinapi_states`
 - `sinapi_versions`
 - `sinapi_import_batches`
 - `sinapi_compositions`
@@ -462,6 +738,25 @@ Tabelas públicas de referência:
 Tabela tenant-scoped de snapshot:
 
 - `pme_saved_sinapi_items`
+- `pme_budget_sinapi_snapshots`
+
+Migration de alinhamento:
+
+- `supabase/migrations/20260626000700_align_sinapi_simplified_contract.sql`
+
+Ela adiciona o contrato canônico com `uf`, `regime`, status publicado/processando, custos
+originais por composição e snapshots separados por orçamento.
+
+### sinapi_states
+
+Lista UFs e regiões disponíveis para busca.
+
+Campos principais:
+
+- `uf`
+- `name`
+- `region`
+- `is_active`
 
 ### sinapi_versions
 
@@ -543,18 +838,66 @@ Campos principais:
 
 ### pme_saved_sinapi_items
 
-Snapshot imutável do item SINAPI usado em orçamento PME.
+Item SINAPI adaptado e salvo pela organização para reutilização.
 
 Campos obrigatórios de rastreabilidade:
 
 - `sinapi_code`
 - `sinapi_description`
-- `state_code`
+- `uf`
 - `reference_month`
 - `reference_year`
-- `original_unit_cost`
+- `regime`
+- `original_unit`
+- `original_total_cost`
+- `adapted_description`
+- `adapted_unit`
+- `adapted_unit_cost`
 - `adapted_unit_price`
-- `used_at`
+- `waste_percentage`
+- `productivity_adjustment_percentage`
+- `margin_percentage`
+- `created_by`
+
+### pme_budget_sinapi_snapshots
+
+Snapshot imutável do SINAPI usado em um item de orçamento PME.
+
+Campos principais:
+
+- `organization_id`
+- `budget_id`
+- `budget_item_id`
+- `sinapi_composition_id`
+- `sinapi_code`
+- `sinapi_description`
+- `uf`
+- `reference_month`
+- `reference_year`
+- `regime`
+- `original_unit`
+- `original_total_cost`
+- `original_labor_cost`
+- `original_material_cost`
+- `original_equipment_cost`
+- `adapted_description`
+- `adapted_unit`
+- `adapted_quantity`
+- `adapted_unit_cost`
+- `adapted_unit_price`
+- `waste_percentage`
+- `productivity_adjustment_percentage`
+- `margin_percentage`
+- `snapshot_data`
+- `created_by`
+- `created_at`
+
+Regras:
+
+- tem `organization_id` e RLS ativo;
+- usa FK composta com orçamento e item para evitar vínculo cross-tenant;
+- não expõe update/delete comum;
+- atualizações futuras do SINAPI não alteram o snapshot.
 
 Campos de adaptação:
 
@@ -732,22 +1075,45 @@ Edge Function:
 Fluxo:
 
 - valida o usuário autenticado com `supabase.auth.getUser()`;
-- recebe apenas `budgetId` e opcionalmente `projectId`;
+- recebe `budgetId`, `confirmed` e campos opcionais seguros de nome/data/observação;
 - não aceita `organization_id`, `tenant_id` ou `user_id` no body;
 - busca o orçamento via RLS;
 - deriva `organization_id` do orçamento;
 - valida role `owner`, `admin` ou `manager`;
 - exige orçamento com status `approved` e `approved_at`;
 - bloqueia conversão duplicada quando `converted_project_id` já existe ou status já é `converted_to_project`;
-- cria ou vincula `projects`;
+- cria ou reaproveita `projects` com `source_module = 'pme_budget'` e `source_id = budget_id`;
 - usa `calculatePmeBudget` via serviço centralizado para montar previsão inicial;
+- persiste snapshot completo em `pme_project_budget_snapshots`;
+- cria previsões em `pme_project_cost_forecasts`;
+- cria previsões em `pme_project_receivable_forecasts`;
+- cria fallback de recebimento 100% se o orçamento não tiver condições de pagamento;
+- preserva snapshots SINAPI existentes no `snapshot_data`;
+- registra `pme_budget_conversion_logs`;
 - atualiza o orçamento para `converted_to_project`;
-- registra `audit_log` com ambientes, itens copiados, previsão inicial de custos, previsão inicial de recebimentos e cálculo usado.
+- registra histórico de status e `audit_log` com ambientes, itens copiados, previsão inicial de custos, previsão inicial de recebimentos e cálculo usado.
+
+Tabelas staging criadas pela migration `20260626000800_create_pme_budget_conversion_to_project.sql`:
+
+- `pme_project_budget_snapshots`
+- `pme_project_cost_forecasts`
+- `pme_project_receivable_forecasts`
+- `pme_budget_conversion_logs`
+
+Essas tabelas têm `organization_id`, FKs compostas por organização, RLS ativo e policies baseadas em
+`is_organization_member`/`has_organization_role`.
+
+Idempotência:
+
+- `projects_pme_budget_source_unique` impede dois projetos para o mesmo orçamento PME;
+- `pme_project_budget_snapshots_budget_unique` impede dois snapshots base para o mesmo orçamento;
+- `pme_budget_conversion_logs_success_unique` impede dois logs de sucesso para o mesmo orçamento;
+- a Edge Function retorna o `converted_project_id` existente se o orçamento já estiver convertido.
 
 Limites:
 
 - ainda não há tabelas finais de orçamento da obra ou motor financeiro completo;
-- ambientes, itens e previsões iniciais ficam registrados no `audit_logs.metadata` como snapshot auditável;
+- snapshots e previsões ficam em tabelas staging PME;
 - a execução ainda não é uma transação SQL única. Uma RPC transacional deve ser criada quando as tabelas financeiras oficiais existirem.
 
 ## Axia PME Assistant
@@ -755,6 +1121,10 @@ Limites:
 Migration:
 
 - `supabase/migrations/20260626000400_create_axia_pme_assistant.sql`
+- `supabase/migrations/20260626000900_align_axia_pme_assistant_contract.sql`
+- `supabase/migrations/20260627000100_create_pme_project_management.sql`
+- `supabase/migrations/20260627000200_create_pme_purchases_and_suppliers.sql`
+- `supabase/migrations/20260627000300_enhance_pme_daily_logs.sql`
 
 Edge Function:
 
@@ -766,6 +1136,10 @@ Tabelas:
 - `axia_runs`
 - `axia_context_snapshots`
 - `axia_insights`
+- `axia_suggestions`
+- `axia_suggestion_items`
+- `axia_feedback`
+- `axia_redaction_logs`
 
 Regras:
 
@@ -774,10 +1148,13 @@ Regras:
 - não aprova orçamento;
 - não converte orçamento em obra;
 - não altera preço final sem validação humana;
-- toda sugestão entra como `draft` ou `suggested`;
+- toda sugestão entra como `suggested`, `draft` ou `pending_approval` na resposta e como `suggested` no banco até revisão;
 - toda execução gera log em `axia_runs`;
 - o contexto sanitizado fica em `axia_context_snapshots`;
-- as sugestões estruturadas ficam em `axia_insights`;
+- remoções LGPD ficam em `axia_redaction_logs`;
+- as sugestões estruturadas ficam em `axia_suggestions`;
+- ações individuais sugeridas ficam em `axia_suggestion_items`;
+- feedback do usuário fica em `axia_feedback`;
 - prompts são versionados em `axia_prompts`.
 
 Sanitização:
@@ -785,6 +1162,8 @@ Sanitização:
 - remove CPF/CNPJ, e-mail, telefone, dados bancários, tokens, senhas e chaves;
 - não envia `client_phone` ou `client_email`;
 - usa apenas contexto mínimo do orçamento PME.
+- não envia `audit_logs` completos;
+- não envia custo interno ou margem para perfis sem permissão.
 
 ## Testes mínimos
 
@@ -807,8 +1186,11 @@ Os testes atuais validam estaticamente:
 - Serviços de Meu Catálogo montam payloads de buscar, criar, editar e desativar itens.
 - SINAPI simplificado cria tabelas de referência, RLS de leitura autenticada, snapshot PME e tipos TypeScript.
 - Serviços SINAPI buscam composição, adaptam preço, detectam mistura de referência e montam snapshot.
-- Conversão PME para projeto valida status aprovado, usa cálculo centralizado, não aceita `organization_id` no body e registra `audit_log`.
+- Conversão PME para projeto valida status aprovado, usa cálculo centralizado, não aceita `organization_id` no body, cria tabelas staging com RLS, preserva SINAPI snapshot, cria previsões e registra `audit_log`.
 - Axia PME cria prompt versionado, logs de execução, contexto sanitizado, insights `draft`/`suggested` e Edge Function segura.
+- Gestão simples da obra PME cria tabelas operacionais, RLS, cálculo previsto vs. realizado, Edge Functions seguras e UI com abas.
+- Compras PME cria fornecedores, solicitações, cotações, pedidos, entregas, anexos, histórico de status e integração com custo real.
+- Diário de Obra PME guiado cria tabelas de equipe, atividades, ocorrências, materiais, equipamentos, clima, voz, revisões e exports.
 
 Quando houver ambiente Supabase local, adicionar testes executando policies com usuários de organizações diferentes.
 
@@ -816,8 +1198,132 @@ Quando houver ambiente Supabase local, adicionar testes executando policies com 
 
 - RLS real ainda não foi testado contra um banco Supabase local.
 - O motor financeiro oficial ainda não existe.
+- Conversão PME para obra usa tabelas staging; RPC transacional única deve ser priorizada quando o motor financeiro oficial existir.
 - SINAPI completo ainda não está implementado.
 - SINAPI ainda não tem importador automático completo.
 - Permissões finas para ocultar margem/custo interno serão detalhadas em fase posterior.
 - Kits iniciais ainda são templates sem itens financeiros oficiais.
 - Axia ainda usa resposta estruturada local; integração com provedor externo deve manter a mesma sanitização e logs.
+
+## Gestão Simples da Obra PME
+
+Migration:
+
+- `supabase/migrations/20260627000100_create_pme_project_management.sql`
+
+Tabelas:
+
+- `pme_project_stages`
+- `pme_project_tasks`
+- `pme_project_purchases`
+- `pme_project_purchase_items`
+- `pme_project_actual_costs`
+- `pme_project_receipts`
+- `pme_project_daily_logs`
+- `pme_project_photos`
+- `pme_project_attachments`
+- `pme_project_progress_snapshots`
+- `pme_project_financial_summary`
+
+Regras de banco:
+
+- todas as tabelas têm `organization_id`;
+- todas as tabelas têm RLS ativo;
+- FKs compostas com `(organization_id, project_id)` protegem vínculo cross-tenant;
+- dinheiro usa `numeric(14, 2)`;
+- progresso usa `numeric(5, 2)` com `check` entre 0 e 100;
+- custos pagos exigem `payment_date`;
+- recebimentos `received` exigem `received_at`;
+- diário `locked` é protegido por trigger contra edição;
+- índices cobrem `organization_id`, `project_id`, status, datas e criação de fotos.
+
+Serviço financeiro:
+
+- `packages/domain/src/pme-projects/projectManagement.ts`
+- `supabase/functions/pme-project-calculate-summary/index.ts`
+
+Regras implementadas:
+
+- `planned_cost` vem das previsões de custo não canceladas;
+- `actual_cost` soma custos reais com `payment_status = 'paid'`;
+- `planned_revenue` vem das previsões de recebimento não canceladas;
+- `received_revenue` soma recebimentos com `receipt_status = 'received'`;
+- `pending_receivables` soma previsões `planned`, `invoiced` e `overdue`;
+- `expected_profit = planned_revenue - planned_cost`;
+- `actual_profit = received_revenue - actual_cost`;
+- `profit_variance = actual_profit - expected_profit`;
+- `cost_variance = actual_cost - planned_cost`.
+
+Limites:
+
+- RLS real ainda precisa ser validado contra Supabase local/remoto;
+- não há motor financeiro completo, conciliação bancária, fiscal ou compras com aprovação;
+- tabelas de fotos/anexos persistem metadados; regras de Storage devem ser adicionadas ao plugar upload real.
+
+## Compras e Fornecedores PME
+
+Migration:
+
+- `supabase/migrations/20260627000200_create_pme_purchases_and_suppliers.sql`
+
+Tabelas:
+
+- `pme_suppliers`
+- `pme_supplier_contacts`
+- `pme_purchase_requests`
+- `pme_purchase_request_items`
+- `pme_supplier_quotes`
+- `pme_supplier_quote_items`
+- `pme_purchase_orders`
+- `pme_purchase_order_items`
+- `pme_purchase_deliveries`
+- `pme_purchase_delivery_items`
+- `pme_purchase_attachments`
+- `pme_purchase_status_history`
+
+Regras:
+
+- todas as tabelas têm `organization_id` e RLS ativo;
+- FKs compostas protegem vínculos cross-tenant;
+- dinheiro usa `numeric(14, 2)`;
+- quantidade usa `numeric(14, 4)`;
+- pedido de compra guarda snapshot do fornecedor;
+- cotação selecionada pode virar pedido;
+- pedido cancelado não deve gerar entrega, pagamento ou custo real;
+- pedido entregue/pago pode gerar custo real na obra;
+- geração de custo real deve evitar duplicidade por `actual_cost_id`;
+- anexos de compra guardam metadados e devem usar Storage privado.
+
+## Diário de Obra PME Guiado
+
+Migration:
+
+- `supabase/migrations/20260627000300_enhance_pme_daily_logs.sql`
+
+Tabelas novas:
+
+- `pme_project_daily_log_labor`
+- `pme_project_daily_log_activities`
+- `pme_project_daily_log_occurrences`
+- `pme_project_daily_log_materials`
+- `pme_project_daily_log_equipment`
+- `pme_project_daily_log_weather`
+- `pme_project_daily_log_voice_notes`
+- `pme_project_daily_log_reviews`
+- `pme_project_daily_log_exports`
+
+Alterações em `pme_project_daily_logs`:
+
+- adiciona `weather_source`, `weather_summary`, `voice_summary`, `completion_notes`;
+- adiciona `locked_by`, `locked_at`, `completed_by`, `completed_at`;
+- adiciona snapshots de relatório;
+- expande status para `draft`, `in_review`, `completed`, `locked`, `cancelled`.
+
+Regras:
+
+- todas as tabelas novas têm `organization_id` e RLS ativo;
+- FKs compostas protegem vínculo cross-tenant com projeto e diário;
+- voz salva `transcript_text` e `structured_payload` como sugestão;
+- clima salva `source = manual | automatic | imported`;
+- exports salvam `html_snapshot` e metadados;
+- diário `locked` continua protegido contra edição comum.

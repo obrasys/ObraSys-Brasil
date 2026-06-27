@@ -8,8 +8,8 @@ export function FoundationBadge({ label }: FoundationBadgeProps) {
       style={{
         display: "inline-flex",
         borderRadius: 6,
-        background: "#e7f0ff",
-        color: "#164b8f",
+        background: "var(--obs-primary-soft, #efe8fa)",
+        color: "var(--obs-primary, #340773)",
         fontSize: 13,
         fontWeight: 700,
         padding: "6px 10px"

@@ -1,19 +1,25 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
-import { PmeBudgetEditorPage } from "./PmeBudgetEditorPage";
+import { PmeBudgetCreatePage } from "./PmeBudgetCreatePage";
+import { PmeBudgetEditPage } from "./PmeBudgetEditPage";
 import { PmeBudgetListPage } from "./PmeBudgetListPage";
+import { PmeBudgetViewPage } from "./PmeBudgetViewPage";
 
 type PmeBudgetRoute =
   | { name: "list" }
   | { name: "new" }
   | {
+      name: "view";
+      id: string;
+    }
+  | {
       name: "edit";
       id: string;
     };
 
-const listPath = "/pme/orcamentos";
-const newPath = "/pme/orcamentos/novo";
+const listPath = "/app/orcamentos-pme";
+const newPath = "/app/orcamentos-pme/novo";
 
 export function PmeBudgetsModule() {
   const queryClient = useMemo(() => new QueryClient(), []);
@@ -39,20 +45,28 @@ export function PmeBudgetsModule() {
       {route.name === "list" ? (
         <PmeBudgetListPage
           onCreate={() => navigate({ name: "new" })}
+          onView={(id) => navigate({ name: "view", id })}
           onEdit={(id) => navigate({ name: "edit", id })}
         />
       ) : null}
 
       {route.name === "new" ? (
-        <PmeBudgetEditorPage
-          budgetId={null}
+        <PmeBudgetCreatePage
           onBack={() => navigate({ name: "list" })}
-          onSaved={(id) => navigate({ name: "edit", id })}
+          onCreated={(id) => navigate({ name: "edit", id })}
+        />
+      ) : null}
+
+      {route.name === "view" ? (
+        <PmeBudgetViewPage
+          budgetId={route.id}
+          onBack={() => navigate({ name: "list" })}
+          onEdit={(id) => navigate({ name: "edit", id })}
         />
       ) : null}
 
       {route.name === "edit" ? (
-        <PmeBudgetEditorPage
+        <PmeBudgetEditPage
           budgetId={route.id}
           onBack={() => navigate({ name: "list" })}
           onSaved={(id) => navigate({ name: "edit", id })}
@@ -70,8 +84,13 @@ function parseRoute(): PmeBudgetRoute {
   }
 
   if (pathname.startsWith(`${listPath}/`)) {
-    const id = pathname.slice(`${listPath}/`.length);
-    return id.length > 0 ? { name: "edit", id } : { name: "list" };
+    const suffix = pathname.slice(`${listPath}/`.length);
+    const editSuffix = suffix.endsWith("/editar");
+    const id = editSuffix ? suffix.slice(0, -"/editar".length) : suffix;
+
+    if (id.length > 0) {
+      return editSuffix ? { name: "edit", id } : { name: "view", id };
+    }
   }
 
   if (pathname !== listPath) {
@@ -86,8 +105,12 @@ function routeToPath(route: PmeBudgetRoute): string {
     return newPath;
   }
 
-  if (route.name === "edit") {
+  if (route.name === "view") {
     return `${listPath}/${route.id}`;
+  }
+
+  if (route.name === "edit") {
+    return `${listPath}/${route.id}/editar`;
   }
 
   return listPath;

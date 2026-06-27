@@ -1,0 +1,77 @@
+{
+  "organizations": [
+    {
+      "id": "org-demo-a",
+      "name": "Construtora Demo A"
+    },
+    {
+      "id": "org-demo-b",
+      "name": "Reformas Demo B"
+    }
+  ],
+  "users": [
+    {
+      "id": "user-admin-a",
+      "organizationId": "org-demo-a",
+      "role": "admin"
+    },
+    {
+      "id": "user-manager-a",
+      "organizationId": "org-demo-a",
+      "role": "manager"
+    },
+    {
+      "id": "user-viewer-a",
+      "organizationId": "org-demo-a",
+      "role": "viewer"
+    },
+    {
+      "id": "user-admin-b",
+      "organizationId": "org-demo-b",
+      "role": "admin"
+    }
+  ],
+  "budgets": [
+    {
+      "id": "budget-banheiro-a",
+      "organizationId": "org-demo-a",
+      "clientName": "Cliente Banheiro",
+      "title": "Reforma de banheiro",
+      "status": "approved",
+      "finalPrice": "15000.00"
+    },
+    {
+      "id": "budget-pintura-a",
+      "organizationId": "org-demo-a",
+      "clientName": "Cliente Pintura",
+      "title": "Pintura apartamento",
+      "status": "sent",
+      "finalPrice": "6200.00"
+    }
+  ],
+  "catalog": {
+    "items": ["Argamassa ACIII", "Rejunte flexivel", "Pintura parede"],
+    "kits": ["Kit banheiro simples"]
+  },
+  "sinapi": {
+    "uf": "SP",
+    "referenceMonth": 6,
+    "referenceYear": 2026,
+    "regime": "nao_desonerado",
+    "compositionCode": "SINAPI-DEMO-001"
+  },
+  "project": {
+    "id": "project-banheiro-a",
+    "organizationId": "org-demo-a",
+    "sourceBudgetId": "budget-banheiro-a",
+    "status": "active"
+  },
+  "operations": {
+    "tasks": ["Demolicao", "Impermeabilizacao", "Assentamento de piso"],
+    "supplier": "Materiais Centro",
+    "purchaseOrder": "PC-DEMO-001",
+    "receipt": "Entrada 50%",
+    "dailyLog": "Diario de obra demo",
+    "notification": "Recebimento vencido demo"
+  }
+}

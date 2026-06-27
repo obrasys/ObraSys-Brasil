@@ -3,5 +3,6 @@ dist/
 apps/web/dist/
 coverage/
 supabase/.temp/
+.codex/
 supabase/migrations/*.sql
 package-lock.json
